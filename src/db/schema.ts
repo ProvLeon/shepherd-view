@@ -4,6 +4,7 @@ import { pgTable, uuid, text, timestamp, date, pgEnum } from 'drizzle-orm/pg-cor
 export const roleEnum = pgEnum('role', ['Leader', 'Shepherd', 'Member', 'New Convert', 'Guest']);
 export const campusEnum = pgEnum('campus', ['CoHK', 'KNUST', 'Legon', 'Other']);
 export const statusEnum = pgEnum('status', ['Active', 'Inactive', 'Archived']);
+export const categoryEnum = pgEnum('category', ['Student', 'Workforce', 'NSS', 'Alumni']);
 export const eventTypeEnum = pgEnum('event_type', ['Service', 'Retreat', 'Meeting', 'Outreach']);
 export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Excused']);
 
@@ -26,6 +27,7 @@ export const members = pgTable('members', {
     campId: uuid('camp_id').references(() => camps.id),
     role: roleEnum('role').default('Member'),
     status: statusEnum('status').default('Active'),
+    category: categoryEnum('category').default('Student'),
     birthday: date('birthday'),
     joinDate: date('join_date').defaultNow(),
     createdAt: timestamp('created_at').defaultNow(),
@@ -38,6 +40,8 @@ export const events = pgTable('events', {
     date: timestamp('date').notNull(),
     type: eventTypeEnum('type').default('Service'),
     description: text('description'),
+    meetingUrl: text('meeting_url'), // For Google Meet links
+    isRecurring: text('is_recurring'), // 'weekly', 'biweekly', 'monthly', or null
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -49,4 +53,11 @@ export const attendance = pgTable('attendance', {
     status: attendanceStatusEnum('status').default('Present'),
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Settings Table (key-value store)
+export const settings = pgTable('settings', {
+    key: text('key').primaryKey(),
+    value: text('value').notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
 });

@@ -3,6 +3,7 @@ import {
     LayoutDashboard,
     Users,
     Calendar,
+    Building2,
     Settings,
     LogOut,
     Menu
@@ -16,6 +17,7 @@ export function Sidebar() {
         { to: '/', label: 'Dashboard', icon: LayoutDashboard },
         { to: '/members', label: 'Members', icon: Users },
         { to: '/attendance', label: 'Attendance', icon: Calendar },
+        { to: '/campuses', label: 'Campuses', icon: Building2 },
         { to: '/settings', label: 'Settings', icon: Settings },
     ]
 
