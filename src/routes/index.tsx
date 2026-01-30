@@ -160,32 +160,21 @@ function Dashboard() {
               </div>
             )}
 
-            {/* Ministry Events */}
-            <div className="flex items-center justify-between p-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Calendar className="w-5 h-5 text-blue-600" />
+            {/* Upcoming events from database */}
+            {stats.upcomingEvents && stats.upcomingEvents.slice(0, 2).map((event: any) => (
+              <div key={event.id} className="flex items-center justify-between p-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-100">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-800">{event.name}</span>
+                    <p className="text-sm text-gray-500">{event.type}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-800">Friday Vigil</span>
-                  <p className="text-sm text-gray-500">Weekly ministry event</p>
-                </div>
+                <span className="text-sm font-medium text-blue-600">{event.date}</span>
               </div>
-              <span className="text-sm font-medium text-blue-600">Friday</span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-xl border border-amber-100 bg-linear-to-r from-amber-50 to-yellow-50 hover:from-amber-100 hover:to-yellow-100 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100">
-                  <Bell className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <span className="font-medium text-gray-800">Sunday Bible Study</span>
-                  <p className="text-sm text-gray-500">Weekly ministry event</p>
-                </div>
-              </div>
-              <span className="text-sm font-medium text-amber-600">Sunday</span>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -249,20 +238,24 @@ function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <a
-                      href={getCallLink('0000000000')} // Will need real phone
-                      className="p-2 rounded-lg hover:bg-green-50 text-green-600"
-                    >
-                      <Phone className="w-4 h-4" />
-                    </a>
-                    <a
-                      href={getWhatsAppLink('0000000000', `Happy Birthday ${member.firstName}! 🎂`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-lg hover:bg-green-50 text-green-600"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </a>
+                    {member.phone && (
+                      <>
+                        <a
+                          href={getCallLink(member.phone)}
+                          className="p-2 rounded-lg hover:bg-green-50 text-green-600"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </a>
+                        <a
+                          href={getWhatsAppLink(member.phone, `Happy Birthday ${member.firstName}! 🎂`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 rounded-lg hover:bg-green-50 text-green-600"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
