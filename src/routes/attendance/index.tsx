@@ -34,10 +34,12 @@ import {
   bulkMarkAttendance,
   deleteEvent
 } from '../../server/attendance'
+import { AttendanceSkeleton } from '../../components/ui/skeleton'
 
 export const Route = createFileRoute('/attendance/')({
   component: AttendancePage,
   loader: () => getEvents(),
+  pendingComponent: AttendanceSkeleton,
 })
 
 interface Event {

@@ -3,6 +3,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { AppShell } from '../components/layout/AppShell'
+import { AuthProvider } from '../context/AuthContext'
 
 import appCss from '../styles.css?url'
 
@@ -38,9 +39,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <AppShell>
-          {children}
-        </AppShell>
+        <AuthProvider>
+          <AppShell>
+            {children}
+          </AppShell>
+        </AuthProvider>
         <TanStackDevtools
           config={{
             position: 'bottom-right',
@@ -57,3 +60,4 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     </html>
   )
 }
+

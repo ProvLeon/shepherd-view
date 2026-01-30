@@ -22,10 +22,12 @@ import { getEvents } from '../server/attendance'
 import { getSettings, saveAllSettings } from '../server/settings'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import { SettingsSkeleton } from '../components/ui/skeleton'
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,
     loader: () => getSettings(),
+    pendingComponent: SettingsSkeleton,
 })
 
 type Tab = 'general' | 'integrations' | 'data'
@@ -197,8 +199,8 @@ function SettingsPage() {
                 <button
                     onClick={() => setActiveTab('general')}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'general'
-                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                        ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
                         }`}
                 >
                     <Building2 className="w-4 h-4" />
@@ -207,8 +209,8 @@ function SettingsPage() {
                 <button
                     onClick={() => setActiveTab('integrations')}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'integrations'
-                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                        ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
                         }`}
                 >
                     <LinkIcon className="w-4 h-4" />
@@ -217,8 +219,8 @@ function SettingsPage() {
                 <button
                     onClick={() => setActiveTab('data')}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'data'
-                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                        ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
                         }`}
                 >
                     <Database className="w-4 h-4" />

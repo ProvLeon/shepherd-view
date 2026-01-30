@@ -25,10 +25,12 @@ import {
     DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
 import { MemberDetailsSheet } from '../../components/MemberDetailsSheet'
+import { MembersTableSkeleton } from '../../components/ui/skeleton'
 
 export const Route = createFileRoute('/members/')({
     component: MembersList,
     loader: () => getMembers(),
+    pendingComponent: MembersTableSkeleton,
 })
 
 interface Member {

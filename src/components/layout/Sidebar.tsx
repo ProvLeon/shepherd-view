@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
     LayoutDashboard,
     Users,
@@ -6,20 +6,82 @@ import {
     Building2,
     Settings,
     LogOut,
-    Menu
+    Menu,
+    Shield,
+    UserCog
 } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
+
+// Define nav items with role restrictions
+type UserRole = 'Admin' | 'Leader' | 'Shepherd' | null
+
+interface NavItem {
+    to: string
+    label: string
+    icon: React.ComponentType<{ className?: string }>
+    roles?: UserRole[] // If undefined, visible to all authenticated users
+}
+
+const navItems: NavItem[] = [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/members', label: 'Members', icon: Users },
+    { to: '/attendance', label: 'Attendance', icon: Calendar },
+    { to: '/campuses', label: 'Campuses', icon: Building2, roles: ['Admin', 'Leader'] },
+    { to: '/settings', label: 'Settings', icon: Settings, roles: ['Admin'] },
+]
 
 export function Sidebar() {
     const [isMobileOpen, setIsMobileOpen] = useState(false)
+    const [isSigningOut, setIsSigningOut] = useState(false)
+    const { user, role, signOut } = useAuth()
+    const navigate = useNavigate()
 
-    const navItems = [
-        { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/members', label: 'Members', icon: Users },
-        { to: '/attendance', label: 'Attendance', icon: Calendar },
-        { to: '/campuses', label: 'Campuses', icon: Building2 },
-        { to: '/settings', label: 'Settings', icon: Settings },
-    ]
+    // Filter nav items based on user role
+    const filteredNavItems = navItems.filter(item => {
+        if (!item.roles) return true // No restrictions
+        if (!role) return false // User has no role, hide restricted items
+        return item.roles.includes(role)
+    })
+
+    // Handle sign out
+    const handleSignOut = async () => {
+        setIsSigningOut(true)
+        try {
+            await signOut()
+            navigate({ to: '/login' })
+        } catch (error) {
+            console.error('Error signing out:', error)
+        } finally {
+            setIsSigningOut(false)
+        }
+    }
+
+    // Get user initials
+    const getUserInitials = () => {
+        if (!user?.email) return '?'
+        const email = user.email
+        // Try to get first two letters of the part before @
+        const name = email.split('@')[0]
+        if (name.length >= 2) {
+            return name.slice(0, 2).toUpperCase()
+        }
+        return name.toUpperCase()
+    }
+
+    // Get role badge color
+    const getRoleBadgeColor = () => {
+        switch (role) {
+            case 'Admin':
+                return 'bg-red-100 text-red-700'
+            case 'Leader':
+                return 'bg-blue-100 text-blue-700'
+            case 'Shepherd':
+                return 'bg-green-100 text-green-700'
+            default:
+                return 'bg-gray-100 text-gray-700'
+        }
+    }
 
     return (
         <>
@@ -38,18 +100,30 @@ export function Sidebar() {
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
                 {/* Logo Section */}
-                <div className="h-16 flex items-center px-6 border-b border-gray-100 bg-gradient-to-r from-agape-red/5 to-agape-blue/5">
+                <div className="h-16 flex items-center px-6 border-b border-gray-100 bg-linear-to-r from-agape-red/5 to-agape-blue/5">
                     <div className="flex items-center gap-3">
                         <img src="/agape-logo.png" alt="Agape Logo" className="w-8 h-8 object-contain" />
-                        <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-agape-red to-agape-blue">
+                        <span className="font-bold text-lg bg-clip-text text-transparent bg-linear-to-r from-agape-red to-agape-blue">
                             Shepherd's View
                         </span>
                     </div>
                 </div>
 
+                {/* Role Badge */}
+                {role && (
+                    <div className="px-6 py-3 border-b border-gray-100">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor()}`}>
+                            {role === 'Admin' && <Shield className="w-3 h-3" />}
+                            {role === 'Leader' && <UserCog className="w-3 h-3" />}
+                            {role === 'Shepherd' && <Users className="w-3 h-3" />}
+                            {role}
+                        </span>
+                    </div>
+                )}
+
                 {/* Navigation */}
                 <nav className="p-4 space-y-1">
-                    {navItems.map((item) => (
+                    {filteredNavItems.map((item) => (
                         <Link
                             key={item.to}
                             to={item.to}
@@ -67,15 +141,26 @@ export function Sidebar() {
 
                 {/* User Profile / Footer */}
                 <div className="absolute bottom-0 w-full p-4 border-t border-gray-100 bg-gray-50/50">
-                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-agape-purple text-white flex items-center justify-center font-bold text-sm">
-                            AD
+                    <div className="flex items-center gap-3 p-2 rounded-lg">
+                        <div className="w-10 h-10 rounded-full bg-linear-to-br from-agape-purple to-agape-blue text-white flex items-center justify-center font-bold text-sm">
+                            {getUserInitials()}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">Admin User</p>
-                            <p className="text-xs text-gray-500 truncate">admin@agape.org</p>
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                                {user?.email?.split('@')[0] || 'User'}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                                {user?.email || 'Not signed in'}
+                            </p>
                         </div>
-                        <LogOut className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                        <button
+                            onClick={handleSignOut}
+                            disabled={isSigningOut}
+                            className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                            title="Sign out"
+                        >
+                            <LogOut className={`w-4 h-4 ${isSigningOut ? 'animate-pulse' : ''}`} />
+                        </button>
                     </div>
                 </div>
             </aside>
@@ -90,3 +175,4 @@ export function Sidebar() {
         </>
     )
 }
+

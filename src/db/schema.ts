@@ -7,6 +7,9 @@ export const statusEnum = pgEnum('status', ['Active', 'Inactive', 'Archived']);
 export const categoryEnum = pgEnum('category', ['Student', 'Workforce', 'NSS', 'Alumni']);
 export const eventTypeEnum = pgEnum('event_type', ['Service', 'Retreat', 'Meeting', 'Outreach']);
 export const attendanceStatusEnum = pgEnum('attendance_status', ['Present', 'Absent', 'Excused']);
+export const userRoleEnum = pgEnum('user_role', ['Admin', 'Leader', 'Shepherd']);
+export const followUpTypeEnum = pgEnum('follow_up_type', ['Call', 'WhatsApp', 'Prayer', 'Visit', 'Other']);
+export const followUpOutcomeEnum = pgEnum('follow_up_outcome', ['Reached', 'NoAnswer', 'ScheduledCallback']);
 
 // Camps Table
 export const camps = pgTable('camps', {
@@ -42,6 +45,8 @@ export const events = pgTable('events', {
     description: text('description'),
     meetingUrl: text('meeting_url'), // For Google Meet links
     isRecurring: text('is_recurring'), // 'weekly', 'biweekly', 'monthly', or null
+    campId: uuid('camp_id').references(() => camps.id), // null = ministry-wide, else camp-specific
+    createdById: uuid('created_by_id'), // User who created the event
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -61,3 +66,35 @@ export const settings = pgTable('settings', {
     value: text('value').notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// Users Table (for authentication and RBAC)
+export const users = pgTable('users', {
+    id: uuid('id').primaryKey(), // From Supabase Auth
+    email: text('email').notNull().unique(),
+    role: userRoleEnum('role').notNull().default('Shepherd'),
+    memberId: uuid('member_id').references(() => members.id), // Link to their member profile
+    campId: uuid('camp_id').references(() => camps.id), // Which camp they manage
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Follow-ups Table (for tracking member interactions)
+export const followUps = pgTable('follow_ups', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    memberId: uuid('member_id').references(() => members.id).notNull(),
+    userId: uuid('user_id').references(() => users.id).notNull(), // Who did the follow-up
+    type: followUpTypeEnum('type').notNull(),
+    notes: text('notes'),
+    outcome: followUpOutcomeEnum('outcome'),
+    scheduledAt: timestamp('scheduled_at'), // For reminders
+    completedAt: timestamp('completed_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Member-Shepherd Assignments
+export const memberAssignments = pgTable('member_assignments', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    memberId: uuid('member_id').references(() => members.id).notNull(),
+    shepherdId: uuid('shepherd_id').references(() => users.id).notNull(),
+    assignedAt: timestamp('assigned_at').defaultNow(),
+});
+

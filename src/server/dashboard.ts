@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '../db'
-import { members } from '../db/schema'
-import { eq, sql, and, gte, lte } from 'drizzle-orm'
+import { members, events, attendance } from '../db/schema'
+import { eq, sql, and, gte, lte, desc } from 'drizzle-orm'
 
 export const getDashboardStats = createServerFn({ method: "GET" })
     .handler(async () => {
@@ -38,13 +38,83 @@ export const getDashboardStats = createServerFn({ method: "GET" })
                 .where(eq(members.status, 'Active'));
             const activeMembers = activeResult[0]?.count || 0;
 
+            // Get recent events with attendance for chart
+            const recentEvents = await db.select({
+                id: events.id,
+                name: events.name,
+                date: events.date,
+                type: events.type,
+            })
+                .from(events)
+                .where(lte(events.date, now))
+                .orderBy(desc(events.date))
+                .limit(6);
+
+            // Get attendance counts for each event
+            const attendanceData = await Promise.all(
+                recentEvents.map(async (event) => {
+                    const [counts] = await db.select({
+                        present: sql<number>`sum(case when ${attendance.status} = 'Present' then 1 else 0 end)`,
+                        absent: sql<number>`sum(case when ${attendance.status} = 'Absent' then 1 else 0 end)`,
+                    })
+                        .from(attendance)
+                        .where(eq(attendance.eventId, event.id));
+
+                    return {
+                        name: event.name.length > 15 ? event.name.slice(0, 12) + '...' : event.name,
+                        date: new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+                        present: Number(counts?.present || 0),
+                        absent: Number(counts?.absent || 0),
+                    };
+                })
+            );
+
+            // Get upcoming events
+            const upcomingEvents = await db.select({
+                id: events.id,
+                name: events.name,
+                date: events.date,
+                type: events.type,
+            })
+                .from(events)
+                .where(gte(events.date, now))
+                .orderBy(events.date)
+                .limit(5);
+
+            // Get members with birthdays this week
+            const endOfWeek = new Date(now);
+            endOfWeek.setDate(now.getDate() + 7);
+            const birthdaysThisWeek = await db.select({
+                id: members.id,
+                firstName: members.firstName,
+                lastName: members.lastName,
+                birthday: members.birthday,
+            })
+                .from(members)
+                .where(
+                    and(
+                        eq(members.status, 'Active'),
+                        sql`to_char(${members.birthday}, 'MM-DD') >= ${now.toISOString().slice(5, 10)}`,
+                        sql`to_char(${members.birthday}, 'MM-DD') <= ${endOfWeek.toISOString().slice(5, 10)}`
+                    )
+                )
+                .limit(5);
+
             return {
                 totalMembers: Number(totalMembers),
                 newConverts: Number(newConverts),
                 birthdaysToday: Number(birthdaysToday),
                 activeMembers: Number(activeMembers),
-                // Attendance percentage placeholder until events/attendance is implemented
-                attendancePercentage: null,
+                attendanceData: attendanceData.reverse(), // Oldest first for chart
+                upcomingEvents: upcomingEvents.map(e => ({
+                    ...e,
+                    date: new Date(e.date).toLocaleDateString('en-GB', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                    }),
+                })),
+                birthdaysThisWeek,
             };
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
@@ -53,7 +123,10 @@ export const getDashboardStats = createServerFn({ method: "GET" })
                 newConverts: 0,
                 birthdaysToday: 0,
                 activeMembers: 0,
-                attendancePercentage: null,
+                attendanceData: [],
+                upcomingEvents: [],
+                birthdaysThisWeek: [],
             };
         }
     });
+
