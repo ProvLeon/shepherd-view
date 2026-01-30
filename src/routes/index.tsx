@@ -161,7 +161,7 @@ function Dashboard() {
             )}
 
             {/* Ministry Events */}
-            <div className="flex items-center justify-between p-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
+            <div className="flex items-center justify-between p-4 rounded-xl border border-blue-100 bg-linear-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-100">
                   <Calendar className="w-5 h-5 text-blue-600" />
