@@ -17,15 +17,15 @@ import {
   Video,
   ExternalLink
 } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Checkbox } from '../../components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu"
 import {
   getEvents,
   createEvent,
@@ -33,8 +33,8 @@ import {
   markAttendance,
   bulkMarkAttendance,
   deleteEvent
-} from '../../server/attendance'
-import { AttendanceSkeleton } from '../../components/ui/skeleton'
+} from '@/server/attendance'
+import { AttendanceSkeleton } from '@/components/ui/skeleton'
 
 export const Route = createFileRoute('/attendance/')({
   component: AttendancePage,

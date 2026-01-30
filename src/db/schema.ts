@@ -31,6 +31,11 @@ export const members = pgTable('members', {
     role: roleEnum('role').default('Member'),
     status: statusEnum('status').default('Active'),
     category: categoryEnum('category').default('Student'),
+    region: text('region'),
+    residence: text('residence'),
+    guardian: text('guardian'), // Name
+    guardianContact: text('guardian_contact'),
+    guardianLocation: text('guardian_location'),
     birthday: date('birthday'),
     joinDate: date('join_date').defaultNow(),
     createdAt: timestamp('created_at').defaultNow(),

@@ -1,12 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '../db'
-import { settings } from '../db/schema'
+import { db } from '@/db'
+import { settings } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 // Default settings
 const defaultSettings = {
     ministryName: 'Agape Bible Studies',
-    campusName: 'City of Hong Kong',
+    campusName: 'CoHK',
     defaultMeetingUrl: 'https://meet.google.com/pqr-wira-sxh',
     birthdayReminders: 'true',
     attendanceAlerts: 'true',
@@ -79,5 +79,20 @@ export const saveAllSettings = createServerFn({ method: "POST" })
         } catch (error: any) {
             console.error('Error saving settings:', error);
             return { success: false, message: error.message };
+        }
+    });
+
+// Get just the sync progress (POST to avoid caching)
+export const getSyncProgress = createServerFn({ method: "POST" })
+    .handler(async () => {
+        try {
+            const result = await db.select().from(settings).where(eq(settings.key, 'sync_progress')).limit(1);
+            if (result.length > 0) {
+                return JSON.parse(result[0].value);
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching sync progress:', error);
+            return null;
         }
     });

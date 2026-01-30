@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Activity, Users, TrendingUp, Cake, Calendar, Phone, MessageCircle, ChevronRight, Bell, CakeIcon } from 'lucide-react'
-import { getDashboardStats } from '../server/dashboard'
+import { getDashboardStats } from '@/server/dashboard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { getWhatsAppLink, getCallLink } from '../lib/sms'
-import { DashboardSkeleton } from '../components/ui/skeleton'
+import { getWhatsAppLink, getCallLink } from '@/lib/sms'
+import { DashboardSkeleton } from '@/components/ui/skeleton'
 
 export const Route = createFileRoute('/')({
   component: Dashboard,

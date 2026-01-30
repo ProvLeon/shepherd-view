@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FollowupsRouteImport } from './routes/followups'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as CampusesIndexRouteImport } from './routes/campuses/index'
@@ -27,6 +28,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FollowupsRoute = FollowupsRouteImport.update({
+  id: '/followups',
+  path: '/followups',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -68,6 +74,7 @@ const CampusesCategoryCategoryIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/followups': typeof FollowupsRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/followups': typeof FollowupsRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
@@ -91,6 +99,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/followups': typeof FollowupsRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/followups'
     | '/login'
     | '/settings'
     | '/campuses/$campusId'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/followups'
     | '/login'
     | '/settings'
     | '/campuses/$campusId'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/followups'
     | '/login'
     | '/settings'
     | '/campuses/$campusId'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FollowupsRoute: typeof FollowupsRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   CampusesCampusIdRoute: typeof CampusesCampusIdRoute
@@ -162,6 +175,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/followups': {
+      id: '/followups'
+      path: '/followups'
+      fullPath: '/followups'
+      preLoaderRoute: typeof FollowupsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FollowupsRoute: FollowupsRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   CampusesCampusIdRoute: CampusesCampusIdRoute,

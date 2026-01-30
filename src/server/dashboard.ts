@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '../db'
-import { members, events, attendance } from '../db/schema'
+import { db } from '@/db'
+import { members, events, attendance } from '@/db/schema'
 import { eq, sql, and, gte, lte, desc } from 'drizzle-orm'
 
 export const getDashboardStats = createServerFn({ method: "GET" })

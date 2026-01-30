@@ -23,6 +23,10 @@ function CategoryDetailsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
   const handleMemberClick = (member: any) => {
     setSelectedMember(member)
     setIsSheetOpen(true)
@@ -32,6 +36,11 @@ function CategoryDetailsPage() {
     window.location.reload()
   }
 
+  // Reset page when search term changes
+  useState(() => {
+    setCurrentPage(1)
+  })
+
   const filteredMembers = members.filter((member: any) => {
     const query = searchQuery.toLowerCase()
     return (
@@ -40,6 +49,12 @@ function CategoryDetailsPage() {
       member.phone?.includes(query)
     )
   })
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentMembers = filteredMembers.slice(startIndex, endIndex)
 
   const getCategoryColor = (id: string) => {
     if (id === 'Workforce') return 'text-orange-600 bg-orange-50'
@@ -82,7 +97,10 @@ function CategoryDetailsPage() {
               <Input
                 placeholder="Search members..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1)
+                }}
                 className="pl-9 bg-white"
               />
             </div>
@@ -111,7 +129,7 @@ function CategoryDetailsPage() {
               <div className="col-span-0 md:col-span-2 hidden md:block text-right">Action</div>
             </div>
 
-            {filteredMembers.map((member: any) => (
+            {currentMembers.map((member: any) => (
               <div
                 key={member.id}
                 onClick={() => handleMemberClick(member)}
@@ -170,6 +188,41 @@ function CategoryDetailsPage() {
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            {filteredMembers.length > 0 && (
+              <div className="px-6 py-4 flex items-center justify-between border-t border-gray-100 bg-gray-50/30">
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredMembers.length)} of {filteredMembers.length} members
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentPage(p => Math.max(1, p - 1))
+                    }}
+                    className="bg-white"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentPage(p => Math.min(totalPages, p + 1))
+                    }}
+                    className="bg-white"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

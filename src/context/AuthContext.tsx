@@ -40,12 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .single()
 
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Role fetch timeout')), 2000)
+                setTimeout(() => reject(new Error('Role fetch timeout')), 5000)
             )
 
-            const { data, error} = await Promise.race([
-              rolePromise,
-              timeoutPromise as any,
+            const { data, error } = await Promise.race([
+                rolePromise,
+                timeoutPromise as any,
             ])
 
             if (error) {
@@ -54,11 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             const role = (data?.role as UserRole) || null
-            console.log('[AuthContext Role fetched successfully:', role)
+            // console.log('[AuthContext Role fetched successfully:', role)
             return role
 
         } catch (error) {
-          console.error('[AuthContext] Exception while fetching user role:', error instanceof Error ? error.message : String(error))
+            console.error('[AuthContext] Exception while fetching user role:', error instanceof Error ? error.message : String(error))
             return null
         }
     }, [])
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const initializeAuth = async () => {
             try {
-                console.log('[AuthContext] Starting auth initialization...')
+                // console.log('[AuthContext] Starting auth initialization...')
 
                 const supabase = getSupabaseClient()
                 if (!supabase) {
@@ -104,13 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 // Fetch role if user exists
                 if (currentUser) {
-                    console.log('[AuthContext] User found, fetching role:', currentUser.email)
+                    // console.log('[AuthContext] User found, fetching role:', currentUser.email)
                     const userRole = await fetchUserRole(currentUser.id)
                     if (mounted) {
                         setRole(userRole || null)
                     }
                 } else {
-                    console.log('[AuthContext] No user session found')
+                    // console.log('[AuthContext] No user session found')
                     setRole(null)
                 }
 
@@ -129,9 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Set a safety timeout to ensure loading state ends
         timeoutId = setTimeout(() => {
-            console.warn('[AuthContext] Auth initialization timeout - forcing completion')
+            // console.warn('[AuthContext] Auth initialization timeout - forcing completion')
             if (mounted) {
-                console.warn('[AuthContext] Setting isLoading to false due to timeout')
+                // console.warn('[AuthContext] Setting isLoading to false due to timeout')
                 setIsLoading(false)
             }
         }, 3000) // 3 second timeout
@@ -144,17 +144,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 const supabase = getSupabaseClient()
                 if (!supabase) {
-                    console.warn('[AuthContext] Supabase not available for subscription')
+                    // console.warn('[AuthContext] Supabase not available for subscription')
                     return undefined
                 }
 
-                console.log('[AuthContext] Setting up auth state change listener')
+                // console.log('[AuthContext] Setting up auth state change listener')
                 const {
                     data: { subscription },
                 } = supabase.auth.onAuthStateChange(async (_event, session) => {
                     if (!mounted) return
 
-                    console.log('[AuthContext] Auth state changed:', _event)
+                    // console.log('[AuthContext] Auth state changed:', _event)
                     const sessionUser = session?.user || null
                     setUser(sessionUser)
 

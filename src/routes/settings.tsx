@@ -16,13 +16,13 @@ import {
     Save,
     Link as LinkIcon
 } from 'lucide-react'
-import { syncFromGoogleSheet } from '../server/sync'
-import { getMembers } from '../server/members'
-import { getEvents } from '../server/attendance'
-import { getSettings, saveAllSettings } from '../server/settings'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { SettingsSkeleton } from '../components/ui/skeleton'
+import { syncFromGoogleSheet } from '@/server/sync'
+import { getMembers } from '@/server/members'
+import { getEvents } from '@/server/attendance'
+import { getSettings, saveAllSettings } from '@/server/settings'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { SettingsSkeleton } from '@/components/ui/skeleton'
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,

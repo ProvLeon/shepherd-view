@@ -5,9 +5,9 @@ import { useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Checkbox } from '../../components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
     Table,
     TableBody,
@@ -15,7 +15,7 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "../../components/ui/table"
+} from '@/components/ui/table'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,9 +23,9 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu"
-import { MemberDetailsSheet } from '../../components/MemberDetailsSheet'
-import { MembersTableSkeleton } from '../../components/ui/skeleton'
+} from '@/components/ui/dropdown-menu'
+import { MemberDetailsSheet } from '@/components/MemberDetailsSheet'
+import { MembersTableSkeleton } from '@/components/ui/skeleton'
 
 export const Route = createFileRoute('/members/')({
     component: MembersList,
@@ -45,7 +45,14 @@ interface Member {
     joinDate: string | null
     birthday?: string | null
     campName: string | null
+    residence?: string | null
+    guardian?: string | null
+    region?: string | null
+    guardianContact?: string | null
+    guardianLocation?: string | null
 }
+
+
 
 function MembersList() {
     const members = Route.useLoaderData() as Member[]
@@ -54,6 +61,10 @@ function MembersList() {
     const [searchQuery, setSearchQuery] = useState('')
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
 
     // Add Member Modal State
     const [showAddMember, setShowAddMember] = useState(false)
@@ -72,6 +83,11 @@ function MembersList() {
     const [showFilters, setShowFilters] = useState(false)
     const [roleFilter, setRoleFilter] = useState<string>('')
     const [statusFilter, setStatusFilter] = useState<string>('')
+
+    // Reset page when filters change
+    useState(() => {
+        setCurrentPage(1)
+    })
 
     // Filter members by search query and filters
     const filteredMembers = members.filter(member => {
@@ -97,12 +113,18 @@ function MembersList() {
         return true
     })
 
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredMembers.length / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const currentMembers = filteredMembers.slice(startIndex, endIndex)
+
     // Toggle Select All
     const toggleAll = () => {
-        if (selectedIds.length === filteredMembers.length) {
+        if (selectedIds.length === currentMembers.length) {
             setSelectedIds([])
         } else {
-            setSelectedIds(filteredMembers.map(m => m.id))
+            setSelectedIds(currentMembers.map(m => m.id))
         }
     }
 
@@ -295,7 +317,10 @@ function MembersList() {
                     <Input
                         placeholder="Search by name, email, or camp..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value)
+                            setCurrentPage(1) // Reset to page 1 on search
+                        }}
                         className="pl-9 bg-white"
                     />
                 </div>
@@ -325,7 +350,10 @@ function MembersList() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                             <select
                                 value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setRoleFilter(e.target.value)
+                                    setCurrentPage(1)
+                                }}
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
                             >
                                 <option value="">All Roles</option>
@@ -340,7 +368,10 @@ function MembersList() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value)
+                                    setCurrentPage(1)
+                                }}
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
                             >
                                 <option value="">All Statuses</option>
@@ -360,7 +391,7 @@ function MembersList() {
                         <TableRow>
                             <TableHead className="w-[50px]">
                                 <Checkbox
-                                    checked={filteredMembers.length > 0 && selectedIds.length === filteredMembers.length}
+                                    checked={currentMembers.length > 0 && selectedIds.length === currentMembers.length}
                                     onCheckedChange={toggleAll}
                                     aria-label="Select all"
                                 />
@@ -380,7 +411,7 @@ function MembersList() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredMembers.map((member) => (
+                            currentMembers.map((member) => (
                                 <TableRow
                                     key={member.id}
                                     className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
@@ -508,13 +539,23 @@ function MembersList() {
             {filteredMembers.length > 0 && (
                 <div className="flex items-center justify-between px-2">
                     <div className="text-sm text-muted-foreground">
-                        {searchQuery || activeFiltersCount > 0 ? `${filteredMembers.length} of ${members.length} members` : `${members.length} members total`}
+                        Showing {startIndex + 1} to {Math.min(endIndex, filteredMembers.length)} of {filteredMembers.length} members
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm" disabled>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        >
                             Previous
                         </Button>
-                        <Button variant="outline" size="sm" disabled>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        >
                             Next
                         </Button>
                     </div>

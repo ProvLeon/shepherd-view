@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '../db'
-import { members, events } from '../db/schema'
+import { db } from '@/db'
+import { members, events } from '@/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
-import { sendEmail, emailTemplates } from '../lib/email'
-import { sendSMS, sendBulkSMS, smsTemplates } from '../lib/sms'
+import { sendEmail, emailTemplates } from '@/lib/email'
+import { sendSMS, sendBulkSMS, smsTemplates } from '@/lib/sms'
 
 // Send event notification to all active members
 export const sendEventNotification = createServerFn({ method: "POST" })

@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '../db'
-import { camps, members, events, attendance, users, memberAssignments, followUps } from '../db/schema'
+import { db } from '@/db'
+import { camps, members, events, attendance, users, memberAssignments, followUps } from '@/db/schema'
 import { eq, sql, desc, and, count } from 'drizzle-orm'
 
 // Get all camps with stats

@@ -2,10 +2,11 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
-import { AppShell } from '../components/layout/AppShell'
-import { AuthProvider } from '../context/AuthContext'
+import { AppShell } from '@/components/layout/AppShell'
+import { AuthProvider } from '@/context/AuthContext'
+import { SyncProgressProvider } from '@/context/SyncProgressContext'
 
-import appCss from '../styles.css?url'
+import appCss from '@/styles.css?url'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -40,9 +41,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <AuthProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+          <SyncProgressProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </SyncProgressProvider>
         </AuthProvider>
         <TanStackDevtools
           config={{

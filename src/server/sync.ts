@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { google } from 'googleapis'
-import { db } from '../db'
-import { members, camps } from '../db/schema'
+import { db } from '@/db'
+import { members, camps, settings } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 /**
@@ -34,7 +34,28 @@ function findColumn(headers: string[], ...searchTerms: string[]): number {
 export const syncFromGoogleSheet = createServerFn({ method: "POST" })
     .handler(async ({ data }: { data: unknown }) => {
         const { sheetId } = data as { sheetId: string };
+
+        // Helper to update progress
+        const updateProgress = async (current: number, total: number, status: 'running' | 'completed' | 'error', message: string) => {
+            try {
+                await db.insert(settings).values({
+                    key: 'sync_progress',
+                    value: JSON.stringify({ current, total, status, message })
+                }).onConflictDoUpdate({
+                    target: settings.key,
+                    set: {
+                        value: JSON.stringify({ current, total, status, message }),
+                        updatedAt: new Date()
+                    }
+                });
+            } catch (e) {
+                console.error('Failed to update sync progress:', e);
+            }
+        };
+
         try {
+            await updateProgress(0, 0, 'running', 'Initializing sync...');
+
             if (!sheetId) throw new Error("Missing sheetId");
             console.log('Starting dynamic sync from sheet:', sheetId);
 
@@ -57,6 +78,7 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
             const sheets = google.sheets({ version: 'v4', auth });
 
             // 2. Get sheet name dynamically
+            await updateProgress(0, 0, 'running', 'Connecting to Google Sheets...');
             const meta = await sheets.spreadsheets.get({
                 spreadsheetId: sheetId
             });
@@ -67,6 +89,7 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
             console.log(`Syncing from sheet: "${firstSheetName}"`);
 
             // 3. Fetch ALL data including headers (row 1)
+            await updateProgress(0, 0, 'running', `Reading sheet "${firstSheetName}"...`);
             const response = await sheets.spreadsheets.values.get({
                 spreadsheetId: sheetId,
                 range: `${firstSheetName}!A1:Z`, // Get columns A-Z to be flexible
@@ -74,7 +97,9 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
 
             const allRows = response.data.values;
             if (!allRows || allRows.length < 2) {
-                return { success: false, message: 'No data found in sheet (needs header + at least 1 row).' };
+                const msg = 'No data found in sheet (needs header + at least 1 row).';
+                await updateProgress(0, 0, 'error', msg);
+                return { success: false, message: msg };
             }
 
             // 4. Parse header row and find column indices
@@ -91,6 +116,7 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
                 memberType: findColumn(headers, 'new or old', 'member type', 'type', 'status'),
                 region: findColumn(headers, 'region'),
                 residence: findColumn(headers, 'residence', 'address', 'location'),
+                guardian: findColumn(headers, 'guardian', 'parent', 'next of kin'),
                 email: findColumn(headers, 'email'),
             };
 
@@ -98,15 +124,19 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
 
             // Validate minimum required columns
             if (columnMap.firstName === -1 && columnMap.lastName === -1) {
+                const msg = `Could not find name columns. Found headers: ${headers.join(', ')}. Expected "First Name" or "Surname" columns.`;
+                await updateProgress(0, 0, 'error', msg);
                 return {
                     success: false,
-                    message: `Could not find name columns. Found headers: ${headers.join(', ')}. Expected "First Name" or "Surname" columns.`
+                    message: msg
                 };
             }
 
             // 5. Process data rows (skip header)
             const dataRows = allRows.slice(1);
             console.log(`Found ${dataRows.length} data rows to sync.`);
+
+            await updateProgress(0, dataRows.length, 'running', `Processing ${dataRows.length} members...`);
 
             let syncedCount = 0;
             let skippedCount = 0;
@@ -139,6 +169,11 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
             for (let i = 0; i < dataRows.length; i++) {
                 const row = dataRows[i];
 
+                // Update progress every 10 rows to reset DB load
+                if (i % 10 === 0) {
+                    await updateProgress(i, dataRows.length, 'running', `Processing member ${i + 1} of ${dataRows.length}...`);
+                }
+
                 try {
                     // Extract values using dynamic column mapping
                     const getValue = (colIndex: number) => colIndex >= 0 ? (row[colIndex] || '').toString().trim() : '';
@@ -149,6 +184,9 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
                     const birthdayRaw = getValue(columnMap.birthday);
                     const campRaw = getValue(columnMap.camp);
                     const memberTypeRaw = getValue(columnMap.memberType);
+                    const region = getValue(columnMap.region);
+                    const residence = getValue(columnMap.residence);
+                    const guardian = getValue(columnMap.guardian);
                     const email = getValue(columnMap.email);
 
                     // Skip if no name at all
@@ -204,8 +242,8 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
                     // Clean phone number
                     const cleanPhone = phone.replace(/[^\d+]/g, '');
 
-                    // Upsert member - use email if available, otherwise phone
-                    const memberData = {
+                    // Prepare member data
+                    const memberValues = {
                         firstName: firstName || 'Unknown',
                         lastName: lastName || 'Unknown',
                         email: email || null,
@@ -215,38 +253,31 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
                         campus: 'CoHK' as const,
                         status: 'Active' as const,
                         birthday: birthday,
+                        region: region || null,
+                        residence: residence || null,
+                        guardian: guardian || null,
                     };
 
+                    // Manual Upsert Logic to handle non-unique keys safely
+                    let existingMember = null;
                     if (email) {
-                        // Use email as unique key
-                        await db.insert(members).values(memberData)
-                            .onConflictDoUpdate({
-                                target: members.email,
-                                set: {
-                                    firstName: memberData.firstName,
-                                    lastName: memberData.lastName,
-                                    phone: memberData.phone,
-                                    role: memberData.role,
-                                    campId: memberData.campId,
-                                    birthday: memberData.birthday,
-                                }
-                            });
-                    } else if (cleanPhone) {
-                        // Use phone as unique key
-                        await db.insert(members).values(memberData)
-                            .onConflictDoUpdate({
-                                target: members.phone,
-                                set: {
-                                    firstName: memberData.firstName,
-                                    lastName: memberData.lastName,
-                                    role: memberData.role,
-                                    campId: memberData.campId,
-                                    birthday: memberData.birthday,
-                                }
-                            });
+                        const results = await db.select().from(members).where(eq(members.email, email)).limit(1);
+                        existingMember = results[0];
+                    }
+
+                    if (!existingMember && cleanPhone) {
+                        const results = await db.select().from(members).where(eq(members.phone, cleanPhone)).limit(1);
+                        existingMember = results[0];
+                    }
+
+                    if (existingMember) {
+                        // Update
+                        await db.update(members)
+                            .set(memberValues)
+                            .where(eq(members.id, existingMember.id));
                     } else {
-                        // No unique key, just insert
-                        await db.insert(members).values(memberData);
+                        // Insert
+                        await db.insert(members).values(memberValues);
                     }
 
                     // Update camp leader if applicable
@@ -261,16 +292,21 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
 
                     syncedCount++;
                 } catch (rowError: any) {
+                    console.error(`Error processing row ${i + 2}:`, rowError);
                     errors.push(`Row ${i + 2}: ${rowError.message}`);
                 }
             }
+
+            const successMessage = `Successfully synced ${syncedCount} members.${skippedCount > 0 ? ` Skipped ${skippedCount} rows.` : ''}${errors.length > 0 ? ` ${errors.length} errors.` : ''}`;
+
+            await updateProgress(dataRows.length, dataRows.length, 'completed', successMessage);
 
             const result = {
                 success: true,
                 count: syncedCount,
                 skipped: skippedCount,
                 errors: errors.length,
-                message: `Successfully synced ${syncedCount} members.${skippedCount > 0 ? ` Skipped ${skippedCount} rows with missing names.` : ''}${errors.length > 0 ? ` ${errors.length} rows had errors.` : ''}`,
+                message: successMessage,
                 columnMapping: columnMap,
                 foundHeaders: headers,
             };
@@ -280,6 +316,8 @@ export const syncFromGoogleSheet = createServerFn({ method: "POST" })
 
         } catch (error: any) {
             console.error('Sync Error:', error);
-            return { success: false, message: error.message || 'Failed to sync.' };
+            const msg = error.message || 'Failed to sync.';
+            await updateProgress(0, 0, 'error', msg);
+            return { success: false, message: msg };
         }
     });

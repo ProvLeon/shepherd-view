@@ -162,4 +162,29 @@ function StatCard({
     )
 }
 
-export { Card, CardHeader, CardContent, CardFooter, StatCard }
+
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> { }
+
+function CardTitle({ className, ...props }: CardTitleProps) {
+    return (
+        <h3
+            data-slot="card-title"
+            className={cn("text-lg font-semibold text-gray-900", className)}
+            {...props}
+        />
+    )
+}
+
+interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> { }
+
+function CardDescription({ className, ...props }: CardDescriptionProps) {
+    return (
+        <p
+            data-slot="card-description"
+            className={cn("text-sm text-gray-500", className)}
+            {...props}
+        />
+    )
+}
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, StatCard }

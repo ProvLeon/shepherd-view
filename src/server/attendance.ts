@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '../db'
-import { events, attendance, members } from '../db/schema'
+import { db } from '@/db'
+import { events, attendance, members } from '@/db/schema'
 import { eq, desc, sql, and } from 'drizzle-orm'
 
 // Get all events with attendance counts

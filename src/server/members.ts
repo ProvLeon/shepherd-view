@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { desc } from 'drizzle-orm'
-import { db } from '../db'
-import { members, camps } from '../db/schema'
+import { db } from '@/db'
+import { members, camps } from '@/db/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 
 export const getMembers = createServerFn({ method: "GET" })
@@ -18,7 +18,13 @@ export const getMembers = createServerFn({ method: "GET" })
                 category: members.category,
                 phone: members.phone,
                 joinDate: members.joinDate,
+                birthday: members.birthday,
                 campName: camps.name,
+                residence: members.residence,
+                guardian: members.guardian,
+                region: members.region,
+                guardianContact: members.guardianContact,
+                guardianLocation: members.guardianLocation,
             })
                 .from(members)
                 .leftJoin(camps, eq(members.campId, camps.id))
@@ -48,6 +54,11 @@ export const getMemberById = createServerFn({ method: "GET" })
                 joinDate: members.joinDate,
                 birthday: members.birthday,
                 campName: camps.name,
+                residence: members.residence,
+                guardian: members.guardian,
+                region: members.region,
+                guardianContact: members.guardianContact,
+                guardianLocation: members.guardianLocation,
             })
                 .from(members)
                 .leftJoin(camps, eq(members.campId, camps.id))
@@ -81,7 +92,7 @@ export const deleteMembers = createServerFn({ method: "POST" })
 
 export const createMember = createServerFn({ method: "POST" })
     .handler(async ({ data }: { data: unknown }) => {
-        const { firstName, lastName, email, phone, role, campus, category, birthday } = data as {
+        const { firstName, lastName, email, phone, role, campus, category, birthday, region, guardianContact, guardianLocation } = data as {
             firstName: string;
             lastName: string;
             email?: string;
@@ -90,6 +101,9 @@ export const createMember = createServerFn({ method: "POST" })
             campus?: 'CoHK' | 'KNUST' | 'Legon' | 'Other';
             category?: 'Student' | 'Workforce' | 'NSS' | 'Alumni';
             birthday?: string;
+            region?: string;
+            guardianContact?: string;
+            guardianLocation?: string;
         };
 
         try {
@@ -102,6 +116,9 @@ export const createMember = createServerFn({ method: "POST" })
                 campus: campus || 'CoHK',
                 category: category || 'Student',
                 birthday: birthday || null,
+                region: region || null,
+                guardianContact: guardianContact || null,
+                guardianLocation: guardianLocation || null,
             }).returning();
 
             return { success: true, member: newMember };
@@ -113,7 +130,7 @@ export const createMember = createServerFn({ method: "POST" })
 
 export const updateMember = createServerFn({ method: "POST" })
     .handler(async ({ data }: { data: unknown }) => {
-        const { id, firstName, lastName, email, phone, role, campus, category, birthday, status } = data as {
+        const { id, firstName, lastName, email, phone, role, campus, category, birthday, status, residence, guardian, region, guardianContact, guardianLocation } = data as {
             id: string;
             firstName?: string;
             lastName?: string;
@@ -124,6 +141,11 @@ export const updateMember = createServerFn({ method: "POST" })
             category?: 'Student' | 'Workforce' | 'NSS' | 'Alumni';
             birthday?: string;
             status?: 'Active' | 'Inactive' | 'Archived';
+            residence?: string;
+            guardian?: string;
+            region?: string;
+            guardianContact?: string;
+            guardianLocation?: string;
         };
 
         try {
@@ -137,6 +159,11 @@ export const updateMember = createServerFn({ method: "POST" })
             if (category !== undefined) updateData.category = category;
             if (birthday !== undefined) updateData.birthday = birthday || null;
             if (status !== undefined) updateData.status = status;
+            if (residence !== undefined) updateData.residence = residence || null;
+            if (guardian !== undefined) updateData.guardian = guardian || null;
+            if (region !== undefined) updateData.region = region || null;
+            if (guardianContact !== undefined) updateData.guardianContact = guardianContact || null;
+            if (guardianLocation !== undefined) updateData.guardianLocation = guardianLocation || null;
 
             const [updatedMember] = await db.update(members)
                 .set(updateData)
@@ -165,6 +192,12 @@ export const getMembersByCampus = createServerFn({ method: "GET" })
                 campus: members.campus,
                 phone: members.phone,
                 joinDate: members.joinDate,
+                birthday: members.birthday,
+                residence: members.residence,
+                guardian: members.guardian,
+                region: members.region,
+                guardianContact: members.guardianContact,
+                guardianLocation: members.guardianLocation,
                 campName: camps.name,
             })
                 .from(members)
@@ -194,6 +227,12 @@ export const getMembersByCategory = createServerFn({ method: "GET" })
                 campus: members.campus,
                 phone: members.phone,
                 joinDate: members.joinDate,
+                birthday: members.birthday,
+                residence: members.residence,
+                guardian: members.guardian,
+                region: members.region,
+                guardianContact: members.guardianContact,
+                guardianLocation: members.guardianLocation,
                 campName: camps.name,
             })
                 .from(members)

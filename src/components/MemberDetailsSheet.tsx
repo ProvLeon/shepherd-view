@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Phone, Tent, User, MapPin, UserCheck, MessageCircle, Cake, Edit2, Save, X, Briefcase } from 'lucide-react'
+import { Mail, Phone, Tent, User, MapPin, UserCheck, MessageCircle, Cake, Edit2, Save, X, Briefcase, Home, HeartHandshake, History, LayoutDashboard } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import {
@@ -10,6 +10,7 @@ import {
     SheetDescription,
 } from './ui/sheet'
 import { updateMember } from '../server/members'
+import { MemberFollowUps } from './MemberFollowUps'
 
 interface Member {
     id: string
@@ -24,6 +25,11 @@ interface Member {
     joinDate: string | null
     birthday?: string | null
     campName: string | null
+    residence?: string | null
+    guardian?: string | null
+    region?: string | null
+    guardianContact?: string | null
+    guardianLocation?: string | null
 }
 
 interface MemberDetailsSheetProps {
@@ -45,8 +51,15 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
         campus: 'CoHK' as string,
         category: 'Student' as string,
         status: 'Active' as string,
-        birthday: ''
+        birthday: '',
+        residence: '',
+        guardian: '',
+        region: '',
+        guardianContact: '',
+        guardianLocation: ''
     })
+
+    const [activeTab, setActiveTab] = useState<'details' | 'followups'>('details')
 
     if (!member) return null
 
@@ -62,7 +75,12 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
             campus: member.campus || 'CoHK',
             category: member.category || 'Student',
             status: member.status || 'Active',
-            birthday: member.birthday || ''
+            birthday: member.birthday || '',
+            residence: member.residence || '',
+            guardian: member.guardian || '',
+            region: member.region || '',
+            guardianContact: member.guardianContact || '',
+            guardianLocation: member.guardianLocation || ''
         })
         setIsEditing(true)
     }
@@ -91,291 +109,353 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
         }
     }
 
-    const getRoleBadgeClass = (role: string) => {
+    const getRoleBadgeColor = (role: string) => {
         switch (role) {
             case 'Leader':
                 return 'bg-purple-100 text-purple-700 border-purple-200'
             case 'Shepherd':
                 return 'bg-blue-100 text-blue-700 border-blue-200'
-            case 'New Convert':
-                return 'bg-green-100 text-green-700 border-green-200'
-            case 'Guest':
-                return 'bg-yellow-100 text-yellow-700 border-yellow-200'
             default:
-                return 'bg-slate-100 text-slate-700 border-slate-200'
+                return 'bg-gray-100 text-gray-700 border-gray-200'
         }
     }
 
     return (
         <Sheet open={open} onOpenChange={(newOpen) => {
-            if (!newOpen) setIsEditing(false)
+            if (!newOpen) {
+                setIsEditing(false)
+                setActiveTab('details')
+            }
             onOpenChange(newOpen)
         }}>
-            <SheetContent side="right" className="overflow-y-auto">
-                <SheetHeader className="pb-6">
-                    <div className="flex items-center gap-4">
-                        <div className="h-16 w-16 rounded-full bg-linear-to-br from-agape-blue to-agape-purple flex items-center justify-center text-white text-xl font-bold shadow-lg">
-                            {initials}
+            <SheetContent side="right" className="overflow-y-auto w-full sm:max-w-md p-0 border-l border-gray-200 shadow-2xl bg-gray-50">
+                {/* Header - Stays sticky */}
+                <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+                    <div className="px-6 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Button variant="ghost" size="icon" className="-ml-2 text-gray-400 hover:text-gray-900" onClick={() => onOpenChange(false)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                            <span className="font-semibold text-gray-900">Member Details</span>
                         </div>
-                        <div className="flex-1">
-                            {isEditing ? (
-                                <div className="space-y-2">
-                                    <Input
-                                        value={editData.firstName}
-                                        onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
-                                        placeholder="First Name"
-                                        className="font-semibold"
-                                    />
-                                    <Input
-                                        value={editData.lastName}
-                                        onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
-                                        placeholder="Last Name"
-                                    />
-                                </div>
-                            ) : (
-                                <>
-                                    <SheetTitle className="text-xl">
-                                        {member.firstName} {member.lastName}
-                                    </SheetTitle>
-                                    <SheetDescription className="flex items-center gap-2 mt-1">
-                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${getRoleBadgeClass(member.role)}`}>
-                                            {member.role}
-                                        </span>
-                                        <span className={`inline-flex items-center gap-1 text-xs ${member.status === 'Active' ? 'text-green-600' : 'text-gray-400'}`}>
-                                            <span className={`h-1.5 w-1.5 rounded-full ${member.status === 'Active' ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                            {member.status}
-                                        </span>
-                                    </SheetDescription>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Edit/Save Buttons */}
-                    <div className="flex gap-2 mt-4">
-                        {isEditing ? (
-                            <>
-                                <Button onClick={saveChanges} disabled={isSaving} size="sm" className="gap-1">
-                                    <Save className="w-4 h-4" />
-                                    {isSaving ? 'Saving...' : 'Save'}
-                                </Button>
-                                <Button onClick={cancelEditing} variant="outline" size="sm" className="gap-1">
-                                    <X className="w-4 h-4" />
-                                    Cancel
-                                </Button>
-                            </>
-                        ) : (
-                            <Button onClick={startEditing} variant="outline" size="sm" className="gap-1">
-                                <Edit2 className="w-4 h-4" />
-                                Edit Member
+                        {!isEditing && (
+                            <Button onClick={startEditing} variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-medium h-8">
+                                <Edit2 className="w-4 h-4 mr-1.5" />
+                                Edit
                             </Button>
                         )}
-                    </div>
-                </SheetHeader>
-
-                <div className="space-y-6">
-                    {/* Contact Info */}
-                    <div className="space-y-4">
-                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            Contact Information
-                        </h3>
-                        <div className="space-y-3 pl-6">
-                            {isEditing ? (
-                                <>
-                                    <div>
-                                        <label className="text-xs text-gray-500 block mb-1">Email</label>
-                                        <Input
-                                            type="email"
-                                            value={editData.email}
-                                            onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                                            placeholder="email@example.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 block mb-1">Phone</label>
-                                        <Input
-                                            value={editData.phone}
-                                            onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                                            placeholder="0557123456"
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex items-center gap-3">
-                                        <Mail className="w-4 h-4 text-gray-400" />
-                                        {member.email ? (
-                                            <a href={`mailto:${member.email}`} className="text-agape-blue hover:underline">
-                                                {member.email}
-                                            </a>
-                                        ) : (
-                                            <span className="text-gray-400 italic">No email</span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Phone className="w-4 h-4 text-gray-400" />
-                                        {member.phone ? (
-                                            <a href={`tel:${member.phone}`} className="text-agape-blue hover:underline">
-                                                {member.phone}
-                                            </a>
-                                        ) : (
-                                            <span className="text-gray-400 italic">No phone</span>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                        {isEditing && (
+                            <div className="flex items-center gap-2">
+                                <Button onClick={cancelEditing} variant="ghost" size="sm" className="h-8">Cancel</Button>
+                                <Button onClick={saveChanges} size="sm" disabled={isSaving} className="h-8 bg-blue-600 hover:bg-blue-700 text-white">
+                                    {isSaving ? 'Saving...' : 'Save'}
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Ministry Info */}
-                    <div className="space-y-4">
-                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                            <Tent className="w-4 h-4" />
-                            Ministry Details
-                        </h3>
-                        <div className="space-y-3 pl-6">
-                            {isEditing ? (
-                                <>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Role</label>
-                                            <select
-                                                value={editData.role}
-                                                onChange={(e) => setEditData({ ...editData, role: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
-                                            >
-                                                <option value="Member">Member</option>
-                                                <option value="New Convert">New Convert</option>
-                                                <option value="Shepherd">Shepherd</option>
-                                                <option value="Leader">Leader</option>
-                                                <option value="Guest">Guest</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Status</label>
-                                            <select
-                                                value={editData.status}
-                                                onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
-                                            >
-                                                <option value="Active">Active</option>
-                                                <option value="Inactive">Inactive</option>
-                                                <option value="Archived">Archived</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 block mb-1">Category</label>
-                                        <select
-                                            value={editData.category}
-                                            onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
-                                        >
-                                            <option value="Student">Student</option>
-                                            <option value="Workforce">Workforce</option>
-                                            <option value="NSS">NSS</option>
-                                            <option value="Alumni">Alumni</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 block mb-1">Campus</label>
-                                        <select
-                                            value={editData.campus}
-                                            onChange={(e) => setEditData({ ...editData, campus: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
-                                        >
-                                            <option value="CoHK">CoHK</option>
-                                            <option value="KNUST">KNUST</option>
-                                            <option value="Legon">Legon</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 block mb-1">Birthday</label>
+                    {/* Profile Summary */}
+                    <div className="px-6 pb-6">
+                        <div className="flex items-start gap-5">
+                            <div className="relative shrink-0">
+                                <div className="h-20 w-20 rounded-2xl bg-linear-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ring-white">
+                                    {initials}
+                                </div>
+                                <div className={`absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-[3px] border-white flex items-center justify-center ${member.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'}`} title={`Status: ${member.status}`}>
+                                    {member.status === 'Active' && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                                </div>
+                            </div>
+
+                            <div className="flex-1 space-y-1 pt-1">
+                                {isEditing ? (
+                                    <div className="flex gap-2">
                                         <Input
-                                            type="date"
-                                            value={editData.birthday}
-                                            onChange={(e) => setEditData({ ...editData, birthday: e.target.value })}
+                                            value={editData.firstName}
+                                            onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
+                                            placeholder="First"
+                                            className="h-9 font-semibold"
+                                        />
+                                        <Input
+                                            value={editData.lastName}
+                                            onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
+                                            placeholder="Last"
+                                            className="h-9 font-semibold"
                                         />
                                     </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex items-center gap-3">
-                                        <Briefcase className="w-4 h-4 text-gray-400" />
-                                        <span className="text-gray-700">{member.category || 'Student'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <MapPin className="w-4 h-4 text-gray-400" />
-                                        <span className="text-gray-700">{member.campus === 'CoHK' ? 'CoHK' : (member.campus || 'Unknown Campus')}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Tent className="w-4 h-4 text-gray-400" />
-                                        <span>
-                                            {member.campName ? (
-                                                <span className="font-medium text-gray-700">⛺️ {member.campName}</span>
-                                            ) : (
-                                                <span className="text-gray-400 italic">No Camp Assigned</span>
-                                            )}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <UserCheck className="w-4 h-4 text-gray-400" />
-                                        <span className="text-gray-700">
-                                            Joined: {member.joinDate ? new Date(member.joinDate).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            }) : 'Unknown'}
-                                        </span>
-                                    </div>
-                                    {member.birthday && (
-                                        <div className="flex items-center gap-3">
-                                            <Cake className="w-4 h-4 text-gray-400" />
-                                            <span className="text-gray-700">
-                                                Birthday: {new Date(member.birthday).toLocaleDateString('en-US', {
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })}
+                                ) : (
+                                    <>
+                                        <h2 className="text-xl font-bold text-gray-900 leading-tight">{member.firstName} {member.lastName}</h2>
+                                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(member.role)}`}>
+                                                {member.role}
                                             </span>
+                                            {member.category && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                                    {member.category}
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
-                                </>
-                            )}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Quick Actions - Only show when not editing */}
-                    {!isEditing && (
-                        <div className="pt-4 space-y-3 border-t border-gray-100">
-                            <h3 className="font-semibold text-gray-900">Quick Actions</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {member.phone && (
-                                    <Button variant="outline" size="sm" asChild>
-                                        <a href={`tel:${member.phone}`}>
-                                            <Phone className="w-4 h-4 mr-2" />
-                                            Call
-                                        </a>
-                                    </Button>
-                                )}
-                                {member.email && (
-                                    <Button variant="outline" size="sm" asChild>
-                                        <a href={`mailto:${member.email}`}>
-                                            <Mail className="w-4 h-4 mr-2" />
-                                            Email
-                                        </a>
-                                    </Button>
-                                )}
-                                {member.phone && (
-                                    <Button variant="outline" size="sm" asChild>
-                                        <a href={`https://wa.me/233${member.phone.replace(/[^0-9]/g, '').replace(/^0/, '')}`} target="_blank" rel="noopener noreferrer">
-                                            <MessageCircle className="w-4 h-4 mr-2" />
-                                            WhatsApp
-                                        </a>
+                        {/* Quick Actions (Call/Text) */}
+                        {!isEditing && (
+                            <div className="flex gap-3 mt-6">
+                                {member.phone ? (
+                                    <>
+                                        <Button className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm h-9" asChild>
+                                            <a href={`tel:${member.phone}`}>
+                                                <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                                                Call
+                                            </a>
+                                        </Button>
+                                        <Button className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm h-9" asChild>
+                                            <a href={`https://wa.me/233${member.phone.replace(/[^0-9]/g, '').replace(/^0/, '')}`} target="_blank" rel="noopener noreferrer">
+                                                <MessageCircle className="w-4 h-4 mr-2 text-green-600" />
+                                                WhatsApp
+                                            </a>
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button disabled className="flex-1 bg-gray-50 text-gray-400 border border-gray-100 shadow-none">
+                                        No Contact Info
                                     </Button>
                                 )}
                             </div>
+                        )}
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div className="flex items-center px-6 border-t border-gray-100">
+                        <button
+                            onClick={() => setActiveTab('details')}
+                            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Details
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('followups')}
+                            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'followups' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        >
+                            History & Notes
+                        </button>
+                    </div>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="p-6">
+                    {activeTab === 'details' ? (
+                        <div className="space-y-6">
+
+                            {/* Personal Info Card */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                        <User className="w-3.5 h-3.5 text-blue-600" />
+                                        Personal & Contact
+                                    </h3>
+                                </div>
+                                <div className="p-5 grid gap-4">
+                                    {isEditing ? (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Email</label>
+                                                    <Input value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} className="h-8" placeholder="Email" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Phone</label>
+                                                    <Input value={editData.phone} onChange={e => setEditData({ ...editData, phone: e.target.value })} className="h-8" placeholder="Phone" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Residence</label>
+                                                <Input value={editData.residence} onChange={e => setEditData({ ...editData, residence: e.target.value })} className="h-8" placeholder="Residence Address" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Region</label>
+                                                <Input value={editData.region} onChange={e => setEditData({ ...editData, region: e.target.value })} className="h-8" placeholder="Region" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Birthday</label>
+                                                <Input type="date" value={editData.birthday} onChange={e => setEditData({ ...editData, birthday: e.target.value })} className="h-8" />
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-medium text-gray-400 uppercase">Phone</p>
+                                                    <p className="text-sm font-medium text-gray-900 truncate">{member.phone || '—'}</p>
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-medium text-gray-400 uppercase">Email</p>
+                                                    <p className="text-sm font-medium text-gray-900 truncate" title={member.email || ''}>{member.email || '—'}</p>
+                                                </div>
+                                                <div className="col-span-2 space-y-0.5">
+                                                    <p className="text-[10px] font-medium text-gray-400 uppercase">Residence</p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                                        <span className="text-sm font-medium text-gray-900">{member.residence || 'No residential address set'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-medium text-gray-400 uppercase">Region</p>
+                                                    <p className="text-sm font-medium text-gray-900">{member.region || '—'}</p>
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-medium text-gray-400 uppercase">Birthday</p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Cake className="w-3.5 h-3.5 text-rose-400" />
+                                                        <span className="text-sm font-medium text-gray-900">
+                                                            {member.birthday ? new Date(member.birthday).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) : '—'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Ministry Card */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                        <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+                                        Ministry
+                                    </h3>
+                                </div>
+                                <div className="p-5">
+                                    {isEditing ? (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Role</label>
+                                                <select value={editData.role} onChange={e => setEditData({ ...editData, role: e.target.value })} className="w-full h-8 text-sm border-gray-300 rounded px-2">
+                                                    <option>Member</option>
+                                                    <option>Leader</option>
+                                                    <option>Shepherd</option>
+                                                    <option>New Convert</option>
+                                                    <option>Guest</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+                                                <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className="w-full h-8 text-sm border-gray-300 rounded px-2">
+                                                    <option>Student</option>
+                                                    <option>Workforce</option>
+                                                    <option>NSS</option>
+                                                    <option>Alumni</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Status</label>
+                                                <select value={editData.status} onChange={e => setEditData({ ...editData, status: e.target.value })} className="w-full h-8 text-sm border-gray-300 rounded px-2">
+                                                    <option>Active</option>
+                                                    <option>Inactive</option>
+                                                    <option>Archived</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Campus</label>
+                                                <select value={editData.campus} onChange={e => setEditData({ ...editData, campus: e.target.value })} className="w-full h-8 text-sm border-gray-300 rounded px-2">
+                                                    <option>CoHK</option>
+                                                    <option>KNUST</option>
+                                                    <option>Legon</option>
+                                                    <option>Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-y-4">
+                                            <div className="space-y-0.5">
+                                                <p className="text-[10px] font-medium text-gray-400 uppercase">Assigned Camp</p>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Tent className="w-3.5 h-3.5 text-gray-400" />
+                                                    <span className="text-sm font-medium text-gray-900">{member.campName || 'Unassigned'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                <p className="text-[10px] font-medium text-gray-400 uppercase">Campus</p>
+                                                <span className="text-sm font-medium text-gray-900">{member.campus || 'CoHK'}</span>
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                <p className="text-[10px] font-medium text-gray-400 uppercase">Date Joined</p>
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {member.joinDate ? new Date(member.joinDate).toLocaleDateString() : 'Unknown'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Guardian Card */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                        <HeartHandshake className="w-3.5 h-3.5 text-rose-500" />
+                                        Guardian Details
+                                    </h3>
+                                </div>
+                                <div className="p-5">
+                                    {isEditing ? (
+                                        <div className="space-y-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Name</label>
+                                                <Input value={editData.guardian} onChange={e => setEditData({ ...editData, guardian: e.target.value })} className="h-8" placeholder="Guardian Name" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Contact</label>
+                                                    <Input value={editData.guardianContact} onChange={e => setEditData({ ...editData, guardianContact: e.target.value })} className="h-8" placeholder="Phone" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Location</label>
+                                                    <Input value={editData.guardianLocation} onChange={e => setEditData({ ...editData, guardianLocation: e.target.value })} className="h-8" placeholder="Location" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {member.guardian ? (
+                                                <div className="flex items-start gap-4">
+                                                    <div className="h-10 w-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 font-bold shrink-0">
+                                                        {member.guardian[0]}
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-bold text-gray-900">{member.guardian}</p>
+                                                        <div className="flex flex-col gap-1 text-xs text-gray-500">
+                                                            {member.guardianContact && (
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <Phone className="w-3 h-3" />
+                                                                    {member.guardianContact}
+                                                                </span>
+                                                            )}
+                                                            {member.guardianLocation && (
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <MapPin className="w-3 h-3" />
+                                                                    {member.guardianLocation}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-4">
+                                                    <p className="text-sm text-gray-400 italic">No guardian information added.</p>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                            <MemberFollowUps memberId={member.id} />
                         </div>
                     )}
                 </div>
@@ -383,3 +463,4 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
         </Sheet>
     )
 }
+
