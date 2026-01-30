@@ -11,27 +11,37 @@ export function AppShell({ children }: { children: ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
-    const [isChecking, setIsChecking] = useState(true)
+    const [hasNavigated, setHasNavigated] = useState(false)
 
     useEffect(() => {
-        // Skip check while loading auth state
-        if (isLoading) return
+        if (hasNavigated) return
 
         const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname)
 
-        if (!isAuthenticated && !isPublicRoute) {
-            // Redirect to login if not authenticated
-            navigate({ to: '/login' })
-        } else if (isAuthenticated && location.pathname === '/login') {
-            // Redirect to dashboard if already logged in
-            navigate({ to: '/' })
+        // On login page, allow access regardless of auth state
+        if (isPublicRoute) {
+            return
         }
 
-        setIsChecking(false)
-    }, [isAuthenticated, isLoading, location.pathname, navigate])
+        // If auth is still loading, don't navigate yet
+        if (isLoading) {
+            return
+        }
 
-    // Show loading skeleton while checking auth
-    if (isLoading || isChecking) {
+        // Auth loading is done - make navigation decisions
+        if (!isAuthenticated && !isPublicRoute) {
+            // Not authenticated and not on public route - redirect to login
+            navigate({ to: '/login' })
+            setHasNavigated(true)
+        } else if (isAuthenticated && isPublicRoute) {
+            // Authenticated and on login page - redirect to dashboard
+            navigate({ to: '/' })
+            setHasNavigated(true)
+        }
+    }, [isAuthenticated, isLoading, location.pathname, navigate, hasNavigated])
+
+    // Show loading skeleton while auth is initializing
+    if (isLoading) {
         return <AuthLoadingSkeleton />
     }
 
@@ -51,4 +61,3 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
     )
 }
-

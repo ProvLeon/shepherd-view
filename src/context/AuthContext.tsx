@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import { getSupabaseClient } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
+// Detect if we're running on the server
+const isServer = typeof window === 'undefined'
+
 type UserRole = 'Admin' | 'Leader' | 'Shepherd' | null
 
 interface AuthContextType {
@@ -20,38 +23,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [role, setRole] = useState<UserRole>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    // Fetch user role from database - wrapped in useCallback to avoid dependency issues
+    // Fetch user role from database
     const fetchUserRole = useCallback(async (userId: string): Promise<UserRole> => {
         try {
             const supabase = getSupabaseClient()
-            const { data, error } = await supabase
+            if (!supabase) {
+                console.warn('[AuthContext] Supabase client not available, skipping role fetch')
+                return null
+            }
+
+            // const { data, error } = await supabase
+            const rolePromise = supabase
                 .from('users')
                 .select('role')
                 .eq('id', userId)
                 .single()
 
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Role fetch timeout')), 2000)
+            )
+
+            const { data, error} = await Promise.race([
+              rolePromise,
+              timeoutPromise as any,
+            ])
+
             if (error) {
-                console.error('Error fetching user role:', error.message)
+                console.warn('[AuthContext] Error fetching user role:', error.message)
                 return null
             }
 
-            return (data?.role as UserRole) || null
+            const role = (data?.role as UserRole) || null
+            console.log('[AuthContext Role fetched successfully:', role)
+            return role
+
         } catch (error) {
-            console.error('Error fetching user role:', error)
+          console.error('[AuthContext] Exception while fetching user role:', error instanceof Error ? error.message : String(error))
             return null
         }
     }, [])
 
+    // Initialize authentication
     useEffect(() => {
         let mounted = true
-        const supabase = getSupabaseClient()
+        let timeoutId: NodeJS.Timeout | null = null
 
         const initializeAuth = async () => {
             try {
-                const { data: { session }, error } = await supabase.auth.getSession()
+                console.log('[AuthContext] Starting auth initialization...')
 
-                if (error) {
-                    console.error('Error getting session:', error.message)
+                const supabase = getSupabaseClient()
+                if (!supabase) {
+                    console.warn('[AuthContext] Supabase not available, proceeding without auth')
                     if (mounted) {
                         setUser(null)
                         setRole(null)
@@ -60,20 +83,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     return
                 }
 
-                if (mounted) {
-                    setUser(session?.user ?? null)
+                // Get current session
+                const { data: { session }, error } = await supabase.auth.getSession()
 
-                    if (session?.user) {
-                        const userRole = await fetchUserRole(session.user.id)
-                        if (mounted) {
-                            setRole(userRole)
-                        }
+                if (error) {
+                    console.warn('[AuthContext] Error getting session:', error.message)
+                    if (mounted) {
+                        setUser(null)
+                        setRole(null)
+                        setIsLoading(false)
                     }
+                    return
+                }
 
+                if (!mounted) return
+
+                // Set user from session
+                const currentUser = session?.user || null
+                setUser(currentUser)
+
+                // Fetch role if user exists
+                if (currentUser) {
+                    console.log('[AuthContext] User found, fetching role:', currentUser.email)
+                    const userRole = await fetchUserRole(currentUser.id)
+                    if (mounted) {
+                        setRole(userRole || null)
+                    }
+                } else {
+                    console.log('[AuthContext] No user session found')
+                    setRole(null)
+                }
+
+                if (mounted) {
                     setIsLoading(false)
                 }
             } catch (error) {
-                console.error('Auth initialization error:', error)
+                console.error('[AuthContext] Auth initialization error:', error)
                 if (mounted) {
                     setUser(null)
                     setRole(null)
@@ -82,47 +127,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }
 
+        // Set a safety timeout to ensure loading state ends
+        timeoutId = setTimeout(() => {
+            console.warn('[AuthContext] Auth initialization timeout - forcing completion')
+            if (mounted) {
+                console.warn('[AuthContext] Setting isLoading to false due to timeout')
+                setIsLoading(false)
+            }
+        }, 3000) // 3 second timeout
+
+        // Start initialization
         initializeAuth()
 
-        // Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (!mounted) return
-
-            setUser(session?.user ?? null)
-
-            if (session?.user) {
-                const userRole = await fetchUserRole(session.user.id)
-                if (mounted) {
-                    setRole(userRole)
+        // Set up auth state change listener
+        const setupSubscription = async () => {
+            try {
+                const supabase = getSupabaseClient()
+                if (!supabase) {
+                    console.warn('[AuthContext] Supabase not available for subscription')
+                    return undefined
                 }
-            } else {
-                setRole(null)
+
+                console.log('[AuthContext] Setting up auth state change listener')
+                const {
+                    data: { subscription },
+                } = supabase.auth.onAuthStateChange(async (_event, session) => {
+                    if (!mounted) return
+
+                    console.log('[AuthContext] Auth state changed:', _event)
+                    const sessionUser = session?.user || null
+                    setUser(sessionUser)
+
+                    if (sessionUser) {
+                        const userRole = await fetchUserRole(sessionUser.id)
+                        if (mounted) {
+                            setRole(userRole || null)
+                        }
+                    } else {
+                        setRole(null)
+                    }
+                })
+
+                return () => {
+                    subscription?.unsubscribe()
+                }
+            } catch (error) {
+                console.error('[AuthContext] Failed to set up auth subscription:', error)
+                return undefined
             }
+        }
+
+        let unsubscribeFn: (() => void) | undefined
+
+        setupSubscription().then((fn) => {
+            unsubscribeFn = fn
         })
 
+        // Cleanup
         return () => {
             mounted = false
-            subscription.unsubscribe()
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
+            if (unsubscribeFn) {
+                unsubscribeFn()
+            }
         }
     }, [fetchUserRole])
 
     const signOut = async () => {
         try {
             const supabase = getSupabaseClient()
+            if (!supabase) {
+                console.warn('[AuthContext] Supabase not available for sign out')
+                return
+            }
+
             await supabase.auth.signOut()
             setUser(null)
             setRole(null)
         } catch (error) {
-            console.error('Sign out error:', error)
+            console.error('[AuthContext] Sign out error:', error)
         }
     }
 
     const refreshRole = async () => {
         if (user) {
             const userRole = await fetchUserRole(user.id)
-            setRole(userRole)
+            setRole(userRole || null)
         }
     }
 
@@ -165,5 +257,3 @@ export function useIsShepherd() {
     const { role } = useAuth()
     return role === 'Admin' || role === 'Leader' || role === 'Shepherd'
 }
-
-
