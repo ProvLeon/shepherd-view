@@ -1,9 +1,9 @@
-import { createRouter, RootRoute } from '@tanstack/react-router'
+import { createRouter } from '@tanstack/react-router'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
-// Define router context type
+// Define router context type with auth
 export type RouterContext = {
   auth: {
     userId: string | null
@@ -24,6 +24,7 @@ export type RouterContext = {
 export const getRouter = () => {
   const router = createRouter({
     routeTree,
+    // Context will be populated by loaders using auth from client
     context: {
       auth: {
         userId: null,

@@ -3,7 +3,7 @@ import { db } from '../db'
 import { members, events, attendance, users } from '../db/schema'
 import { eq, sql, and, gte, lte, desc } from 'drizzle-orm'
 
-export const getDashboardStats = createServerFn({ method: "GET" })
+export const getDashboardStats = createServerFn({ method: "POST" })
   .inputValidator((data: { userId?: string } = {}) => data)
   .handler(async ({ data }) => {
     const userId = data?.userId

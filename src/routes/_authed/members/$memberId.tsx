@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { getMemberById } from '../../server/members'
-import { Button } from '../../components/ui/button'
+import { getMemberById } from '../../../server/members'
+import { Button } from '../../../components/ui/button'
 import { ArrowLeft, Mail, Phone, Calendar, Tent } from 'lucide-react'
 
-export const Route = createFileRoute('/members/$memberId')({
+export const Route = createFileRoute('/_authed/members/$memberId')({
   component: MemberDetails,
   loader: async ({ params }) => await getMemberById({ data: { id: params.memberId } }),
 })

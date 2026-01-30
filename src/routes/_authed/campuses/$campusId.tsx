@@ -1,24 +1,24 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getMembersByCategory } from '@/server/members'
+import { getMembersByCampus } from '@/server/members'
 import { useState } from 'react'
 import { MemberDetailsSheet } from '@/components/MemberDetailsSheet'
-import { ArrowLeft, Phone, MapPin, Briefcase, Search, Users } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Briefcase, Search, School, UserPlus } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-export const Route = createFileRoute('/campuses/category/$categoryId')({
-  component: CategoryDetailsPage,
+export const Route = createFileRoute('/_authed/campuses/$campusId')({
+  component: CampusDetailsPage,
   loader: async ({ params }) => {
     return {
-      categoryId: params.categoryId,
-      members: await getMembersByCategory({ data: { category: params.categoryId } })
+      campusId: params.campusId,
+      members: await getMembersByCampus({ data: { campus: params.campusId } })
     }
   }
 })
 
-function CategoryDetailsPage() {
-  const { categoryId, members } = Route.useLoaderData()
+function CampusDetailsPage() {
+  const { campusId, members } = Route.useLoaderData()
   const [selectedMember, setSelectedMember] = useState<any>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -41,10 +41,10 @@ function CategoryDetailsPage() {
     )
   })
 
-  const getCategoryColor = (id: string) => {
-    if (id === 'Workforce') return 'text-orange-600 bg-orange-50'
-    if (id === 'NSS') return 'text-indigo-600 bg-indigo-50'
-    if (id === 'Alumni') return 'text-slate-600 bg-slate-50'
+  const getCampusColor = (id: string) => {
+    if (id === 'CoHK') return 'text-blue-600 bg-blue-50'
+    if (id === 'KNUST') return 'text-green-600 bg-green-50'
+    if (id === 'Legon') return 'text-purple-600 bg-purple-50'
     return 'text-gray-600 bg-gray-50'
   }
 
@@ -57,21 +57,21 @@ function CategoryDetailsPage() {
           className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Overview
+          Back to Campuses
         </Link>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-xl ${getCategoryColor(categoryId)}`}>
-              <Briefcase className="w-8 h-8" />
+            <div className={`p-3 rounded-xl ${getCampusColor(campusId)}`}>
+              <School className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-                {categoryId} Group
+                {campusId === 'CoHK' ? 'College of Health (CoHK)' : campusId}
               </h1>
               <p className="text-gray-500 mt-1 flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                {members.length} Members
+                <MapPin className="w-4 h-4" />
+                {members.length} Total Members
               </p>
             </div>
           </div>
@@ -99,14 +99,14 @@ function CategoryDetailsPage() {
             </div>
             <h3 className="text-lg font-medium text-gray-900">No members found</h3>
             <p className="text-gray-500 mt-1">
-              {searchQuery ? `No matches for "${searchQuery}"` : `No members are currently in the ${categoryId} category.`}
+              {searchQuery ? `No matches for "${searchQuery}"` : "This campus doesn't have any members yet."}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
             <div className="bg-gray-50/50 px-6 py-3 grid grid-cols-12 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <div className="col-span-12 md:col-span-5">Member</div>
-              <div className="col-span-0 md:col-span-3 hidden md:block">Campus</div>
+              <div className="col-span-0 md:col-span-3 hidden md:block">Details</div>
               <div className="col-span-0 md:col-span-2 hidden md:block">Status</div>
               <div className="col-span-0 md:col-span-2 hidden md:block text-right">Action</div>
             </div>
@@ -115,7 +115,7 @@ function CategoryDetailsPage() {
               <div
                 key={member.id}
                 onClick={() => handleMemberClick(member)}
-                className="px-6 py-4 hover:bg-orange-50/30 cursor-pointer transition-all group grid grid-cols-12 items-center"
+                className="px-6 py-4 hover:bg-blue-50/30 cursor-pointer transition-all group grid grid-cols-12 items-center"
               >
                 {/* Member Info */}
                 <div className="col-span-12 md:col-span-5 flex items-center gap-4">
@@ -132,12 +132,12 @@ function CategoryDetailsPage() {
                   </div>
                 </div>
 
-                {/* Campus */}
+                {/* Details (Category/Phone) */}
                 <div className="col-span-0 md:col-span-3 hidden md:block">
                   <div className="flex flex-col gap-1">
                     <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                      {member.campus === 'CoHK' ? 'CoHK' : (member.campus || 'Unknown')}
+                      <Briefcase className="w-3.5 h-3.5 text-gray-400" />
+                      {member.category || 'Student'}
                     </span>
                     {member.phone && (
                       <span className="flex items-center gap-1.5 text-xs text-gray-500">

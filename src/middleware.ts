@@ -1,4 +1,20 @@
-import { createMiddleware } from '@tanstack/react-start'
+/**
+ * DEPRECATED: This file is maintained for backward compatibility only.
+ *
+ * Please use src/server/auth-helpers.ts instead, which works with
+ * the new TanStack Start global middleware system (src/start.ts).
+ *
+ * The middleware automatically:
+ * - Extracts Supabase JWT from request headers/cookies
+ * - Verifies user identity
+ * - Fetches user profile from database
+ * - Injects auth context into all server functions
+ *
+ * Migration Guide: See MIDDLEWARE_MIGRATION_GUIDE.md
+ *
+ * @deprecated Use src/server/auth-helpers.ts instead
+ */
+
 import { createClient } from '@supabase/supabase-js'
 import { db } from './db'
 import { users } from './db/schema'
@@ -12,48 +28,11 @@ function createSupabaseAdminClient() {
   )
 }
 
-// Extract JWT from Authorization header or cookies
-function extractTokenFromRequest(request: Request): string | null {
-  // Try Authorization header first
-  const authHeader = request.headers.get('Authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.slice(7)
-  }
-
-  // Try cookies
-  const cookieHeader = request.headers.get('Cookie')
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(';').map(c => c.trim())
-    for (const cookie of cookies) {
-      if (cookie.startsWith('sb-access-token=')) {
-        return decodeURIComponent(cookie.slice(16))
-      }
-    }
-  }
-
-  return null
-}
-
-// Verify JWT token and get user ID
-async function verifyToken(token: string): Promise<string | null> {
+// Helper: Get user profile from database
+export async function getUserProfile(userId: string) {
   try {
-    const supabase = createSupabaseAdminClient()
-    const { data, error } = await supabase.auth.getUser(token)
+    if (!userId) return null
 
-    if (error || !data.user) {
-      return null
-    }
-
-    return data.user.id
-  } catch (error) {
-    console.error('Error verifying token:', error)
-    return null
-  }
-}
-
-// Get user profile from database
-async function getUserProfile(userId: string) {
-  try {
     const [userProfile] = await db
       .select({
         id: users.id,
@@ -75,69 +54,14 @@ async function getUserProfile(userId: string) {
   }
 }
 
-// Main middleware
-export const middleware = createMiddleware({
-  onRequest: async (request) => {
-    try {
-      // Extract token from request
-      const token = extractTokenFromRequest(request)
-
-      // If no token, request is unauthenticated
-      if (!token) {
-        return {
-          auth: {
-            userId: null,
-            user: null,
-            isAuthenticated: false,
-          },
-        }
-      }
-
-      // Verify token
-      const userId = await verifyToken(token)
-
-      if (!userId) {
-        return {
-          auth: {
-            userId: null,
-            user: null,
-            isAuthenticated: false,
-          },
-        }
-      }
-
-      // Get user profile
-      const userProfile = await getUserProfile(userId)
-
-      return {
-        auth: {
-          userId,
-          user: userProfile,
-          isAuthenticated: true,
-        },
-      }
-    } catch (error) {
-      console.error('Middleware error:', error)
-      return {
-        auth: {
-          userId: null,
-          user: null,
-          isAuthenticated: false,
-        },
-      }
-    }
-  },
-})
-
-// Helper: Verify user has access to member
-export async function verifyMemberAccess(userId: string, memberId: string): Promise<boolean> {
+// Helper: Verify user role
+export async function verifyUserRole(userId: string, requiredRoles: string[]): Promise<boolean> {
   try {
     if (!userId) return false
 
     const [userProfile] = await db
       .select({
         role: users.role,
-        campId: users.campId,
       })
       .from(users)
       .where(eq(users.id, userId))
@@ -147,16 +71,9 @@ export async function verifyMemberAccess(userId: string, memberId: string): Prom
       return false
     }
 
-    // Admins have access to all members
-    if (userProfile.role === 'Admin') {
-      return true
-    }
-
-    // For non-admins, verify member belongs to their camp
-    // This would need a members lookup in production
-    return !!userProfile.campId
+    return requiredRoles.includes(userProfile.role as string)
   } catch (error) {
-    console.error('Error verifying member access:', error)
+    console.error('Error verifying user role:', error)
     return false
   }
 }
@@ -191,8 +108,8 @@ export async function getUserAccessibleCamp(userId: string): Promise<string | nu
   }
 }
 
-// Helper: Verify user role
-export async function verifyUserRole(userId: string, requiredRoles: string[]): Promise<boolean> {
+// Helper: Check if user is admin
+export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
     if (!userId) return false
 
@@ -204,5 +121,38 @@ export async function verifyUserRole(userId: string, requiredRoles: string[]): P
       .where(eq(users.id, userId))
       .limit(1)
 
-    if (!userProfile) {
-      return false
+    return userProfile?.role === 'Admin'
+  } catch (error) {
+    console.error('Error checking admin status:', error)
+    return false
+  }
+}
+
+// Helper: Check if user can access camp
+export async function canAccessCamp(userId: string, campId: string): Promise<boolean> {
+  try {
+    if (!userId) return false
+
+    const [userProfile] = await db
+      .select({
+        role: users.role,
+        campId: users.campId,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    if (!userProfile) return false
+
+    // Admins can access all camps
+    if (userProfile.role === 'Admin') {
+      return true
+    }
+
+    // Others can only access their assigned camp
+    return userProfile.campId === campId
+  } catch (error) {
+    console.error('Error checking camp access:', error)
+    return false
+  }
+}

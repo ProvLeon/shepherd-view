@@ -1,13 +1,43 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
+import { HeadContent, Scripts, createRootRoute, Outlet } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
 
-import { AppShell } from '../components/layout/AppShell'
-import { AuthProvider } from '../context/AuthContext'
+import { getSupabaseServerClient } from '../lib/supabase'
 
 import appCss from '../styles.css?url'
 
+// Server function to fetch authenticated user
+const fetchUser = createServerFn({ method: 'GET' }).handler(async () => {
+  try {
+    const supabase = getSupabaseServerClient()
+    const { data, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.log('🔍 [fetchUser] Auth error:', error.message)
+      return null
+    }
+
+    if (!data.user?.email) {
+      console.log('🔍 [fetchUser] No user email found')
+      return null
+    }
+
+    console.log('✅ [fetchUser] User authenticated:', data.user.email)
+
+    return {
+      id: data.user.id,
+      email: data.user.email,
+    }
+  } catch (error) {
+    console.error('❌ [fetchUser] Error fetching user:', error)
+    return null
+  }
+})
+
 export const Route = createRootRoute({
+  beforeLoad: async () => {
+    const user = await fetchUser()
+    return { user }
+  },
   head: () => ({
     meta: [
       {
@@ -29,8 +59,16 @@ export const Route = createRootRoute({
     ],
   }),
 
-  shellComponent: RootDocument,
+  component: RootComponent,
 })
+
+function RootComponent() {
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -39,25 +77,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <AuthProvider>
-          <AppShell>
-            {children}
-          </AppShell>
-        </AuthProvider>
-        <TanStackDevtools
-          config={{
-            position: 'bottom-right',
-          }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {children}
         <Scripts />
       </body>
     </html>
   )
 }
-

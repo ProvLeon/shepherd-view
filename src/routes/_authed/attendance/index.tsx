@@ -8,7 +8,7 @@ import {
   UserCheck,
   UserX,
   Clock,
-  MoreHorizontal,
+
   Check,
   X,
   AlertCircle,
@@ -17,15 +17,9 @@ import {
   Video,
   ExternalLink
 } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Checkbox } from '../../components/ui/checkbox'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   getEvents,
   createEvent,
@@ -33,10 +27,10 @@ import {
   markAttendance,
   bulkMarkAttendance,
   deleteEvent
-} from '../../server/attendance'
-import { AttendanceSkeleton } from '../../components/ui/skeleton'
+} from '@/server/attendance'
+import { AttendanceSkeleton } from '@/components/ui/skeleton'
 
-export const Route = createFileRoute('/attendance/')({
+export const Route = createFileRoute('/_authed/attendance/')({
   component: AttendancePage,
   loader: () => getEvents(),
   pendingComponent: AttendanceSkeleton,
@@ -72,10 +66,16 @@ function AttendancePage() {
 
   // State for creating new event
   const [showNewEventForm, setShowNewEventForm] = useState(false)
-  const [newEvent, setNewEvent] = useState({
+  const [newEvent, setNewEvent] = useState<{
+    name: string
+    date: string
+    type: 'Service' | 'Retreat' | 'Meeting' | 'Outreach'
+    description: string
+    meetingUrl: string
+  }>({
     name: '',
     date: new Date().toISOString().slice(0, 16),
-    type: 'Service' as const,
+    type: 'Service',
     description: '',
     meetingUrl: ''
   })
@@ -134,6 +134,7 @@ function AttendancePage() {
     if (!confirm('Delete this event and all its attendance records?')) return
     await deleteEvent({ data: { eventId } })
     setSelectedEvent(null)
+    setEventMembers([])
     router.invalidate()
   }
 
@@ -389,7 +390,7 @@ function AttendancePage() {
                 variant="ghost"
                 size="sm"
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                onClick={() => handleDeleteEvent(selectedEvent.id)}
+                onClick={() => selectedEvent && handleDeleteEvent(selectedEvent.id)}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { getCampusStats } from '@/server/members'
 import { MapPin, Briefcase, GraduationCap, Users, ArrowRight, Building2, School } from 'lucide-react'
 
-export const Route = createFileRoute('/campuses/')({
+export const Route = createFileRoute('/_authed/campuses/')({
   component: CampusesPage,
   loader: () => getCampusStats(),
 })
@@ -19,7 +19,7 @@ function CampusesPage() {
           Campuses & Groups
         </h1>
         <p className="text-lg text-gray-500 mt-2 max-w-2xl">
-          Manage and view members across different campus branches and ministry categories.
+          Manage and view members across different campus branches and ministry categories
         </p>
       </div>
 

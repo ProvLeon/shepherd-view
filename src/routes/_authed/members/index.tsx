@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Search, Filter, Plus, Phone, Mail, MoreHorizontal, X, UserPlus } from 'lucide-react'
-import { getMembers, deleteMembers, createMember } from '../../server/members'
+import { getMembers, deleteMembers, createMember } from '../../../server/members'
 import { useRouter } from '@tanstack/react-router'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Trash2 } from 'lucide-react'
 
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Checkbox } from '../../components/ui/checkbox'
+import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Checkbox } from '../../../components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../components/ui/table"
+} from "../../../components/ui/table"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,13 +23,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu"
-import { MemberDetailsSheet } from '../../components/MemberDetailsSheet'
-import { MembersTableSkeleton } from '../../components/ui/skeleton'
+} from "../../../components/ui/dropdown-menu"
+import { MemberDetailsSheet } from '../../../components/MemberDetailsSheet'
+import { MembersTableSkeleton } from '../../../components/ui/skeleton'
 
-export const Route = createFileRoute('/members/')({
+export const Route = createFileRoute('/_authed/members/')({
   component: MembersList,
-  loader: () => getMembers(),
   pendingComponent: MembersTableSkeleton,
 })
 
@@ -48,12 +47,34 @@ interface Member {
 }
 
 function MembersList() {
-  const members = Route.useLoaderData() as Member[]
+  const context = Route.useRouteContext() as any
   const router = useRouter()
+  const [members, setMembers] = useState<Member[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+
+  // Fetch members when component mounts and user context is available
+  useEffect(() => {
+    const loadMembers = async () => {
+      setIsLoading(true)
+      try {
+        const data = await getMembers({ data: { userId: context.user?.id } })
+        setMembers(data as Member[])
+      } catch (error) {
+        console.error('Error loading members:', error)
+        setMembers([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (context.user?.id) {
+      loadMembers()
+    }
+  }, [context.user?.id])
 
   // Add Member Modal State
   const [showAddMember, setShowAddMember] = useState(false)

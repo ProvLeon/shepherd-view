@@ -17,39 +17,103 @@ import { eq, inArray, sql } from 'drizzle-orm'
  * See AUTHENTICATION_TODO.md for implementation details
  */
 
-export const getMembers = createServerFn({ method: "GET" })
-  .handler(async () => {
+export const getMembers = createServerFn({ method: "POST" })
+  .inputValidator((data: { userId?: string } = {}) => data)
+  .handler(async ({ data }) => {
     try {
-      // For now, return all members for all authenticated users
-      // TODO: Once middleware is properly implemented, filter by user's role/camp
-      return await db.select({
-        id: members.id,
-        firstName: members.firstName,
-        lastName: members.lastName,
-        email: members.email,
-        role: members.role,
-        status: members.status,
-        campus: members.campus,
-        category: members.category,
-        phone: members.phone,
-        joinDate: members.joinDate,
-        birthday: members.birthday,
-        campName: camps.name,
+      const userId = data?.userId
+
+      console.log('🔍 [getMembers] Received userId:', userId)
+
+      if (!userId) {
+        console.log('❌ [getMembers] No userId provided, returning empty array')
+        return []
+      }
+
+      // Get current user's role and camp
+      console.log('🔍 [getMembers] Looking up user profile for userId:', userId)
+      const [userProfile] = await db.select({
+        role: users.role,
+        campId: users.campId,
       })
-        .from(members)
-        .leftJoin(camps, eq(members.campId, camps.id))
-        .orderBy(desc(members.createdAt))
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+
+      console.log('🔍 [getMembers] User profile found:', userProfile)
+
+      if (!userProfile) {
+        console.log('❌ [getMembers] User profile not found, returning empty array')
+        return []
+      }
+
+      // ADMIN: Return all members (no restrictions)
+      if (userProfile.role === 'Admin') {
+        console.log('✅ [getMembers] Admin user - fetching all members')
+        const allMembers = await db.select({
+          id: members.id,
+          firstName: members.firstName,
+          lastName: members.lastName,
+          email: members.email,
+          role: members.role,
+          status: members.status,
+          campus: members.campus,
+          category: members.category,
+          phone: members.phone,
+          joinDate: members.joinDate,
+          birthday: members.birthday,
+          campName: camps.name,
+        })
+          .from(members)
+          .leftJoin(camps, eq(members.campId, camps.id))
+          .orderBy(desc(members.createdAt))
+        console.log(`✅ [getMembers] Returned ${allMembers.length} members`)
+        return allMembers
+      }
+
+      // LEADER/SHEPHERD: Return only members from their camp
+      if (userProfile.campId) {
+        console.log('✅ [getMembers] Leader/Shepherd user - fetching members for campId:', userProfile.campId)
+        const campMembers = await db.select({
+          id: members.id,
+          firstName: members.firstName,
+          lastName: members.lastName,
+          email: members.email,
+          role: members.role,
+          status: members.status,
+          campus: members.campus,
+          category: members.category,
+          phone: members.phone,
+          joinDate: members.joinDate,
+          birthday: members.birthday,
+          campName: camps.name,
+        })
+          .from(members)
+          .leftJoin(camps, eq(members.campId, camps.id))
+          .where(eq(members.campId, userProfile.campId))
+          .orderBy(desc(members.createdAt))
+        console.log(`✅ [getMembers] Returned ${campMembers.length} members for camp ${userProfile.campId}`)
+        return campMembers
+      }
+
+      // No camp assigned - return empty
+      console.log('❌ [getMembers] User has no campId assigned, returning empty array')
+      return []
     } catch (error) {
-      console.error('Error fetching members:', error)
+      console.error('❌ [getMembers] Error fetching members:', error)
       return []
     }
   })
 
-export const getMemberById = createServerFn({ method: "GET" })
-  .inputValidator((data: { id: string }) => data)
+export const getMemberById = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string; userId?: string }) => data)
   .handler(async ({ data }) => {
     try {
-      const { id } = data
+      const { id, userId } = data
+
+      if (!userId) {
+        return null
+      }
 
       const result = await db.select({
         id: members.id,
@@ -183,7 +247,7 @@ export const updateMember = createServerFn({ method: "POST" })
     }
   })
 
-export const getMembersByCampus = createServerFn({ method: "GET" })
+export const getMembersByCampus = createServerFn({ method: "POST" })
   .inputValidator((data: { campus: string }) => data)
   .handler(async ({ data }) => {
     try {
@@ -212,7 +276,7 @@ export const getMembersByCampus = createServerFn({ method: "GET" })
     }
   })
 
-export const getMembersByCategory = createServerFn({ method: "GET" })
+export const getMembersByCategory = createServerFn({ method: "POST" })
   .inputValidator((data: { category: string }) => data)
   .handler(async ({ data }) => {
     try {

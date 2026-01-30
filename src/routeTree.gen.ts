@@ -9,96 +9,102 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as MembersIndexRouteImport } from './routes/members/index'
-import { Route as CampusesIndexRouteImport } from './routes/campuses/index'
-import { Route as AttendanceIndexRouteImport } from './routes/attendance/index'
-import { Route as MembersMemberIdRouteImport } from './routes/members/$memberId'
-import { Route as CampusesCampusIdRouteImport } from './routes/campuses/$campusId'
-import { Route as CampusesCategoryCategoryIdRouteImport } from './routes/campuses/category/$categoryId'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
+import { Route as AuthedMembersIndexRouteImport } from './routes/_authed/members/index'
+import { Route as AuthedCampusesIndexRouteImport } from './routes/_authed/campuses/index'
+import { Route as AuthedAttendanceIndexRouteImport } from './routes/_authed/attendance/index'
+import { Route as AuthedMembersMemberIdRouteImport } from './routes/_authed/members/$memberId'
+import { Route as AuthedCampusesCampusIdRouteImport } from './routes/_authed/campuses/$campusId'
+import { Route as AuthedCampusesCategoryCategoryIdRouteImport } from './routes/_authed/campuses/category/$categoryId'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const MembersIndexRoute = MembersIndexRouteImport.update({
+const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedMembersIndexRoute = AuthedMembersIndexRouteImport.update({
   id: '/members/',
   path: '/members/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const CampusesIndexRoute = CampusesIndexRouteImport.update({
+const AuthedCampusesIndexRoute = AuthedCampusesIndexRouteImport.update({
   id: '/campuses/',
   path: '/campuses/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const AttendanceIndexRoute = AttendanceIndexRouteImport.update({
+const AuthedAttendanceIndexRoute = AuthedAttendanceIndexRouteImport.update({
   id: '/attendance/',
   path: '/attendance/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
+const AuthedMembersMemberIdRoute = AuthedMembersMemberIdRouteImport.update({
   id: '/members/$memberId',
   path: '/members/$memberId',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const CampusesCampusIdRoute = CampusesCampusIdRouteImport.update({
+const AuthedCampusesCampusIdRoute = AuthedCampusesCampusIdRouteImport.update({
   id: '/campuses/$campusId',
   path: '/campuses/$campusId',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const CampusesCategoryCategoryIdRoute =
-  CampusesCategoryCategoryIdRouteImport.update({
+const AuthedCampusesCategoryCategoryIdRoute =
+  AuthedCampusesCategoryCategoryIdRouteImport.update({
     id: '/campuses/category/$categoryId',
     path: '/campuses/category/$categoryId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
-  '/campuses/$campusId': typeof CampusesCampusIdRoute
-  '/members/$memberId': typeof MembersMemberIdRoute
-  '/attendance/': typeof AttendanceIndexRoute
-  '/campuses/': typeof CampusesIndexRoute
-  '/members/': typeof MembersIndexRoute
-  '/campuses/category/$categoryId': typeof CampusesCategoryCategoryIdRoute
+  '/settings': typeof AuthedSettingsRoute
+  '/campuses/$campusId': typeof AuthedCampusesCampusIdRoute
+  '/members/$memberId': typeof AuthedMembersMemberIdRoute
+  '/attendance/': typeof AuthedAttendanceIndexRoute
+  '/campuses/': typeof AuthedCampusesIndexRoute
+  '/members/': typeof AuthedMembersIndexRoute
+  '/campuses/category/$categoryId': typeof AuthedCampusesCategoryCategoryIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
-  '/campuses/$campusId': typeof CampusesCampusIdRoute
-  '/members/$memberId': typeof MembersMemberIdRoute
-  '/attendance': typeof AttendanceIndexRoute
-  '/campuses': typeof CampusesIndexRoute
-  '/members': typeof MembersIndexRoute
-  '/campuses/category/$categoryId': typeof CampusesCategoryCategoryIdRoute
+  '/settings': typeof AuthedSettingsRoute
+  '/': typeof AuthedIndexRoute
+  '/campuses/$campusId': typeof AuthedCampusesCampusIdRoute
+  '/members/$memberId': typeof AuthedMembersMemberIdRoute
+  '/attendance': typeof AuthedAttendanceIndexRoute
+  '/campuses': typeof AuthedCampusesIndexRoute
+  '/members': typeof AuthedMembersIndexRoute
+  '/campuses/category/$categoryId': typeof AuthedCampusesCategoryCategoryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
-  '/campuses/$campusId': typeof CampusesCampusIdRoute
-  '/members/$memberId': typeof MembersMemberIdRoute
-  '/attendance/': typeof AttendanceIndexRoute
-  '/campuses/': typeof CampusesIndexRoute
-  '/members/': typeof MembersIndexRoute
-  '/campuses/category/$categoryId': typeof CampusesCategoryCategoryIdRoute
+  '/_authed/settings': typeof AuthedSettingsRoute
+  '/_authed/': typeof AuthedIndexRoute
+  '/_authed/campuses/$campusId': typeof AuthedCampusesCampusIdRoute
+  '/_authed/members/$memberId': typeof AuthedMembersMemberIdRoute
+  '/_authed/attendance/': typeof AuthedAttendanceIndexRoute
+  '/_authed/campuses/': typeof AuthedCampusesIndexRoute
+  '/_authed/members/': typeof AuthedMembersIndexRoute
+  '/_authed/campuses/category/$categoryId': typeof AuthedCampusesCategoryCategoryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -114,9 +120,9 @@ export interface FileRouteTypes {
     | '/campuses/category/$categoryId'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/login'
     | '/settings'
+    | '/'
     | '/campuses/$campusId'
     | '/members/$memberId'
     | '/attendance'
@@ -125,38 +131,25 @@ export interface FileRouteTypes {
     | '/campuses/category/$categoryId'
   id:
     | '__root__'
-    | '/'
+    | '/_authed'
     | '/login'
-    | '/settings'
-    | '/campuses/$campusId'
-    | '/members/$memberId'
-    | '/attendance/'
-    | '/campuses/'
-    | '/members/'
-    | '/campuses/category/$categoryId'
+    | '/_authed/settings'
+    | '/_authed/'
+    | '/_authed/campuses/$campusId'
+    | '/_authed/members/$memberId'
+    | '/_authed/attendance/'
+    | '/_authed/campuses/'
+    | '/_authed/members/'
+    | '/_authed/campuses/category/$categoryId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
-  SettingsRoute: typeof SettingsRoute
-  CampusesCampusIdRoute: typeof CampusesCampusIdRoute
-  MembersMemberIdRoute: typeof MembersMemberIdRoute
-  AttendanceIndexRoute: typeof AttendanceIndexRoute
-  CampusesIndexRoute: typeof CampusesIndexRoute
-  MembersIndexRoute: typeof MembersIndexRoute
-  CampusesCategoryCategoryIdRoute: typeof CampusesCategoryCategoryIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -164,78 +157,111 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/': {
+      id: '/_authed/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/members/': {
-      id: '/members/'
+    '/_authed/settings': {
+      id: '/_authed/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthedSettingsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/members/': {
+      id: '/_authed/members/'
       path: '/members'
       fullPath: '/members/'
-      preLoaderRoute: typeof MembersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedMembersIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/campuses/': {
-      id: '/campuses/'
+    '/_authed/campuses/': {
+      id: '/_authed/campuses/'
       path: '/campuses'
       fullPath: '/campuses/'
-      preLoaderRoute: typeof CampusesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedCampusesIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/attendance/': {
-      id: '/attendance/'
+    '/_authed/attendance/': {
+      id: '/_authed/attendance/'
       path: '/attendance'
       fullPath: '/attendance/'
-      preLoaderRoute: typeof AttendanceIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedAttendanceIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/members/$memberId': {
-      id: '/members/$memberId'
+    '/_authed/members/$memberId': {
+      id: '/_authed/members/$memberId'
       path: '/members/$memberId'
       fullPath: '/members/$memberId'
-      preLoaderRoute: typeof MembersMemberIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedMembersMemberIdRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/campuses/$campusId': {
-      id: '/campuses/$campusId'
+    '/_authed/campuses/$campusId': {
+      id: '/_authed/campuses/$campusId'
       path: '/campuses/$campusId'
       fullPath: '/campuses/$campusId'
-      preLoaderRoute: typeof CampusesCampusIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedCampusesCampusIdRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/campuses/category/$categoryId': {
-      id: '/campuses/category/$categoryId'
+    '/_authed/campuses/category/$categoryId': {
+      id: '/_authed/campuses/category/$categoryId'
       path: '/campuses/category/$categoryId'
       fullPath: '/campuses/category/$categoryId'
-      preLoaderRoute: typeof CampusesCategoryCategoryIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedCampusesCategoryCategoryIdRouteImport
+      parentRoute: typeof AuthedRoute
     }
   }
 }
 
+interface AuthedRouteChildren {
+  AuthedSettingsRoute: typeof AuthedSettingsRoute
+  AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedCampusesCampusIdRoute: typeof AuthedCampusesCampusIdRoute
+  AuthedMembersMemberIdRoute: typeof AuthedMembersMemberIdRoute
+  AuthedAttendanceIndexRoute: typeof AuthedAttendanceIndexRoute
+  AuthedCampusesIndexRoute: typeof AuthedCampusesIndexRoute
+  AuthedMembersIndexRoute: typeof AuthedMembersIndexRoute
+  AuthedCampusesCategoryCategoryIdRoute: typeof AuthedCampusesCategoryCategoryIdRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedSettingsRoute: AuthedSettingsRoute,
+  AuthedIndexRoute: AuthedIndexRoute,
+  AuthedCampusesCampusIdRoute: AuthedCampusesCampusIdRoute,
+  AuthedMembersMemberIdRoute: AuthedMembersMemberIdRoute,
+  AuthedAttendanceIndexRoute: AuthedAttendanceIndexRoute,
+  AuthedCampusesIndexRoute: AuthedCampusesIndexRoute,
+  AuthedMembersIndexRoute: AuthedMembersIndexRoute,
+  AuthedCampusesCategoryCategoryIdRoute: AuthedCampusesCategoryCategoryIdRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
-  SettingsRoute: SettingsRoute,
-  CampusesCampusIdRoute: CampusesCampusIdRoute,
-  MembersMemberIdRoute: MembersMemberIdRoute,
-  AttendanceIndexRoute: AttendanceIndexRoute,
-  CampusesIndexRoute: CampusesIndexRoute,
-  MembersIndexRoute: MembersIndexRoute,
-  CampusesCategoryCategoryIdRoute: CampusesCategoryCategoryIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

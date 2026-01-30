@@ -4,7 +4,7 @@ import { followUps, members, users } from '../db/schema'
 import { eq, desc, and, isNull, lte } from 'drizzle-orm'
 
 // Get all follow-ups for a member
-export const getMemberFollowUps = createServerFn({ method: "GET" })
+export const getMemberFollowUps = createServerFn({ method: "POST" })
   .inputValidator((data: { memberId: string }) => data)
   .handler(async ({ data }) => {
     try {
@@ -89,7 +89,7 @@ export const completeFollowUp = createServerFn({ method: "POST" })
   })
 
 // Get pending/scheduled follow-ups for a user
-export const getPendingFollowUps = createServerFn({ method: "GET" })
+export const getPendingFollowUps = createServerFn({ method: "POST" })
   .inputValidator((data: { userId: string }) => data)
   .handler(async ({ data }) => {
     try {
@@ -102,7 +102,6 @@ export const getPendingFollowUps = createServerFn({ method: "GET" })
         memberId: members.id,
         memberFirstName: members.firstName,
         memberLastName: members.lastName,
-        memberPhone: members.phone,
       })
         .from(followUps)
         .innerJoin(members, eq(followUps.memberId, members.id))
@@ -122,7 +121,7 @@ export const getPendingFollowUps = createServerFn({ method: "GET" })
   })
 
 // Get overdue follow-ups (scheduled in the past but not completed)
-export const getOverdueFollowUps = createServerFn({ method: "GET" })
+export const getOverdueFollowUps = createServerFn({ method: "POST" })
   .inputValidator((data: { userId: string }) => data)
   .handler(async ({ data }) => {
     try {
@@ -135,7 +134,6 @@ export const getOverdueFollowUps = createServerFn({ method: "GET" })
         memberId: members.id,
         memberFirstName: members.firstName,
         memberLastName: members.lastName,
-        memberPhone: members.phone,
       })
         .from(followUps)
         .innerJoin(members, eq(followUps.memberId, members.id))

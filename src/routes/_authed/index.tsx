@@ -1,18 +1,35 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Activity, Users, TrendingUp, Cake, Calendar, Phone, MessageCircle, ChevronRight, Bell, CakeIcon } from 'lucide-react'
-import { getDashboardStats } from '../server/dashboard'
+import { Activity, Users, TrendingUp, Cake, Calendar, Phone, MessageCircle, ChevronRight, CakeIcon } from 'lucide-react'
+import { getDashboardStats } from '../../server/dashboard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { getWhatsAppLink, getCallLink } from '../lib/sms'
-import { DashboardSkeleton } from '../components/ui/skeleton'
+import { getWhatsAppLink, getCallLink } from '../../lib/sms'
+import { DashboardSkeleton } from '../../components/ui/skeleton'
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute('/_authed/')({
   component: Dashboard,
-  loader: () => getDashboardStats(),
+  loader: async ({ context }: { context: any }) => {
+    // Fetch dashboard stats in the loader with userId from auth context
+    // This will trigger pendingComponent while loading
+    try {
+      return await getDashboardStats({ data: { userId: context.user?.id } })
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error)
+      return {
+        totalMembers: 0,
+        newConverts: 0,
+        birthdaysToday: 0,
+        activeMembers: 0,
+        attendanceData: [],
+        upcomingEvents: [],
+        birthdaysThisWeek: [],
+      }
+    }
+  },
   pendingComponent: DashboardSkeleton,
 })
 
 function Dashboard() {
-  const stats = Route.useLoaderData()
+  const stats = Route.useLoaderData() as any
 
   const statCards = [
     {
