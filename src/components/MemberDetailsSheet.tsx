@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Phone, User, MapPin, MessageCircle, Cake, Edit2, X, Briefcase, HeartHandshake, Send, Loader2, Calendar, Copy, CheckCircle, ExternalLink, Users } from 'lucide-react'
+import { Mail, Phone, User, MapPin, MessageCircle, Cake, Edit2, X, Briefcase, HeartHandshake, Send, Loader2, Copy, CheckCircle, Users } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import {
@@ -60,7 +60,7 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
         guardianLocation: ''
     })
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'details' | 'followups'>('overview')
+    const [activeTab, setActiveTab] = useState<'overview' | 'followups'>('overview')
     const [isSendingLink, setIsSendingLink] = useState(false)
 
     const copyToClipboard = (text: string, field: string) => {
@@ -135,7 +135,6 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
             guardianLocation: member.guardianLocation || ''
         })
         setIsEditing(true)
-        setActiveTab('details')
     }
 
     const cancelEditing = () => {
@@ -318,17 +317,16 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                 {/* Navigation Tabs */}
                 <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
                     <div className="flex">
-                        {(['overview', 'details', 'followups'] as const).map((tab) => (
+                        {(['overview', 'followups'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`flex-1 py-3.5 text-sm font-medium transition-all relative ${activeTab === tab
-                                        ? 'text-slate-900'
-                                        : 'text-gray-400 hover:text-gray-600'
+                                    ? 'text-slate-900'
+                                    : 'text-gray-400 hover:text-gray-600'
                                     }`}
                             >
-                                {tab === 'overview' && 'Overview'}
-                                {tab === 'details' && 'Details'}
+                                {tab === 'overview' && (isEditing ? 'Edit Profile' : 'Overview')}
                                 {tab === 'followups' && 'History'}
                                 {activeTab === tab && (
                                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-slate-900 rounded-full" />
@@ -493,123 +491,110 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                         </div>
                     )}
 
-                    {/* Details Tab (for editing) */}
-                    {activeTab === 'details' && (
+                    {/* Overview Tab - Edit Mode */}
+                    {activeTab === 'overview' && isEditing && (
                         <div className="space-y-4 animate-in fade-in duration-200">
-                            {isEditing ? (
-                                <>
-                                    {/* Personal Info */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
-                                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                            <User className="w-4 h-4 text-blue-600" />
-                                            Personal & Contact
-                                        </h3>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Email</label>
-                                                <Input value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} className="h-10" placeholder="Email" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Phone</label>
-                                                <Input value={editData.phone} onChange={e => setEditData({ ...editData, phone: e.target.value })} className="h-10" placeholder="Phone" />
-                                            </div>
+                            {/* Personal Info */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
+                                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                    <User className="w-4 h-4 text-blue-600" />
+                                    Personal & Contact
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Email</label>
+                                        <Input value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} className="h-10" placeholder="Email" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Phone</label>
+                                        <Input value={editData.phone} onChange={e => setEditData({ ...editData, phone: e.target.value })} className="h-10" placeholder="Phone" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500">Birthday</label>
+                                    <Input type="date" value={editData.birthday} onChange={e => setEditData({ ...editData, birthday: e.target.value })} className="h-10" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Residence</label>
+                                        <Input value={editData.residence} onChange={e => setEditData({ ...editData, residence: e.target.value })} className="h-10" placeholder="Residence" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Region</label>
+                                        <Input value={editData.region} onChange={e => setEditData({ ...editData, region: e.target.value })} className="h-10" placeholder="Region" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ministry Info */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
+                                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                    <Briefcase className="w-4 h-4 text-indigo-600" />
+                                    Ministry
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Role</label>
+                                        <select value={editData.role} onChange={e => setEditData({ ...editData, role: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
+                                            <option>Member</option>
+                                            <option>Leader</option>
+                                            <option>Shepherd</option>
+                                            <option>New Convert</option>
+                                            <option>Guest</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Category</label>
+                                        <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
+                                            <option>Student</option>
+                                            <option>Workforce</option>
+                                            <option>NSS</option>
+                                            <option>Alumni</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Status</label>
+                                        <select value={editData.status} onChange={e => setEditData({ ...editData, status: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
+                                            <option>Active</option>
+                                            <option>Inactive</option>
+                                            <option>Archived</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Campus</label>
+                                        <select value={editData.campus} onChange={e => setEditData({ ...editData, campus: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
+                                            <option>CoHK</option>
+                                            <option>KNUST</option>
+                                            <option>Legon</option>
+                                            <option>Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Guardian Info */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
+                                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                    <HeartHandshake className="w-4 h-4 text-rose-500" />
+                                    Guardian / Next of Kin
+                                </h3>
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Guardian Name</label>
+                                        <Input value={editData.guardian} onChange={e => setEditData({ ...editData, guardian: e.target.value })} className="h-10" placeholder="Full name" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-medium text-gray-500">Contact</label>
+                                            <Input value={editData.guardianContact} onChange={e => setEditData({ ...editData, guardianContact: e.target.value })} className="h-10" placeholder="Phone" />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-gray-500">Birthday</label>
-                                            <Input type="date" value={editData.birthday} onChange={e => setEditData({ ...editData, birthday: e.target.value })} className="h-10" />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Residence</label>
-                                                <Input value={editData.residence} onChange={e => setEditData({ ...editData, residence: e.target.value })} className="h-10" placeholder="Residence" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Region</label>
-                                                <Input value={editData.region} onChange={e => setEditData({ ...editData, region: e.target.value })} className="h-10" placeholder="Region" />
-                                            </div>
+                                            <label className="text-xs font-medium text-gray-500">Location</label>
+                                            <Input value={editData.guardianLocation} onChange={e => setEditData({ ...editData, guardianLocation: e.target.value })} className="h-10" placeholder="City" />
                                         </div>
                                     </div>
-
-                                    {/* Ministry Info */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
-                                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                            <Briefcase className="w-4 h-4 text-indigo-600" />
-                                            Ministry
-                                        </h3>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Role</label>
-                                                <select value={editData.role} onChange={e => setEditData({ ...editData, role: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
-                                                    <option>Member</option>
-                                                    <option>Leader</option>
-                                                    <option>Shepherd</option>
-                                                    <option>New Convert</option>
-                                                    <option>Guest</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Category</label>
-                                                <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
-                                                    <option>Student</option>
-                                                    <option>Workforce</option>
-                                                    <option>NSS</option>
-                                                    <option>Alumni</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Status</label>
-                                                <select value={editData.status} onChange={e => setEditData({ ...editData, status: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
-                                                    <option>Active</option>
-                                                    <option>Inactive</option>
-                                                    <option>Archived</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Campus</label>
-                                                <select value={editData.campus} onChange={e => setEditData({ ...editData, campus: e.target.value })} className="w-full h-10 text-sm border border-gray-200 rounded-lg px-3 bg-white">
-                                                    <option>CoHK</option>
-                                                    <option>KNUST</option>
-                                                    <option>Legon</option>
-                                                    <option>Other</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Guardian Info */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
-                                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                            <HeartHandshake className="w-4 h-4 text-rose-500" />
-                                            Guardian / Next of Kin
-                                        </h3>
-                                        <div className="space-y-3">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-gray-500">Guardian Name</label>
-                                                <Input value={editData.guardian} onChange={e => setEditData({ ...editData, guardian: e.target.value })} className="h-10" placeholder="Full name" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-medium text-gray-500">Contact</label>
-                                                    <Input value={editData.guardianContact} onChange={e => setEditData({ ...editData, guardianContact: e.target.value })} className="h-10" placeholder="Phone" />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-medium text-gray-500">Location</label>
-                                                    <Input value={editData.guardianLocation} onChange={e => setEditData({ ...editData, guardianLocation: e.target.value })} className="h-10" placeholder="City" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                // Non-editing details view - link back to overview
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500 mb-4">Click Edit to modify member details</p>
-                                    <Button onClick={startEditing} className="bg-slate-900 hover:bg-slate-800 text-white">
-                                        <Edit2 className="w-4 h-4 mr-2" />
-                                        Edit Member
-                                    </Button>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )}
 
