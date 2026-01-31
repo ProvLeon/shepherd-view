@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Activity, Users, TrendingUp, Cake, Calendar, Phone, MessageCircle, ChevronRight, Bell, CakeIcon } from 'lucide-react'
+import { Activity, Users, TrendingUp, Cake, Calendar, Phone, MessageCircle, ChevronRight, Bell, CakeIcon, AlertCircle, Clock, X } from 'lucide-react'
 import { getDashboardStats } from '@/server/dashboard'
+import { dismissActionItem } from '@/server/followups'
+import { useRouter } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { getWhatsAppLink, getCallLink } from '@/lib/sms'
 import { DashboardSkeleton } from '@/components/ui/skeleton'
 import { BirthdayWishes } from '@/components/BirthdayWishes'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
@@ -14,6 +18,24 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const stats = Route.useLoaderData()
+  const router = useRouter()
+
+  const handleDismiss = async (e: React.MouseEvent, type: string, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    try {
+      const result = await dismissActionItem({ data: { type, referenceId: id } })
+      if (result.success) {
+        toast.success(result.message || 'Item dismissed')
+        router.invalidate()
+      } else {
+        toast.error(result.message || 'Failed to dismiss')
+      }
+    } catch (error) {
+      toast.error('An error occurred')
+    }
+  }
 
   const statCards = [
     {
@@ -161,32 +183,48 @@ function Dashboard() {
               </div>
             )}
 
-            {/* Ministry Events */}
-            <div className="flex items-center justify-between p-4 rounded-xl border border-blue-100 bg-linear-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Calendar className="w-5 h-5 text-blue-600" />
+            {/* Needs Attention */}
+            {stats.needsAttention && stats.needsAttention.map((member: any) => (
+              <Link
+                key={member.id}
+                to="/members"
+                search={{ search: member.lastName }} // Quick hack to filter, ideally go to details
+                className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-linear-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-100 group-hover:bg-red-200 transition-colors">
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-800">
+                      {member.firstName} {member.lastName}
+                    </span>
+                    <p className="text-sm text-red-600 font-medium">
+                      {member.reason} • {member.daysOverdue} days ago
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-800">Friday Vigil</span>
-                  <p className="text-sm text-gray-500">Weekly ministry event</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={(e) => handleDismiss(e, member.type, member.referenceId)}
+                    className="p-2 -mr-2 rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors z-50"
+                    title="Dismiss alert"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
                 </div>
-              </div>
-              <span className="text-sm font-medium text-blue-600">Friday</span>
-            </div>
+              </Link>
+            ))}
 
-            <div className="flex items-center justify-between p-4 rounded-xl border border-amber-100 bg-linear-to-r from-amber-50 to-yellow-50 hover:from-amber-100 hover:to-yellow-100 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100">
-                  <Bell className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <span className="font-medium text-gray-800">Sunday Bible Study</span>
-                  <p className="text-sm text-gray-500">Weekly ministry event</p>
-                </div>
+            {(!stats.needsAttention || stats.needsAttention.length === 0) && stats.birthdaysToday === 0 && stats.newConverts === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <Clock className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No pending actions</p>
+                <p className="text-sm">You are all caught up!</p>
               </div>
-              <span className="text-sm font-medium text-amber-600">Sunday</span>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -33,6 +33,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             // const { data, error } = await supabase
+            // Check localStorage cache first
+            const cachedRole = localStorage.getItem(`user_role_${userId}`)
+            if (cachedRole) {
+                const role = cachedRole as UserRole
+                // Return cached role immediately but still re-validate in background if needed
+                // For now, trust cache to avoid timeout.
+                // Or verify cache age.
+                return role
+            }
+
             const rolePromise = supabase
                 .from('users')
                 .select('role')
@@ -54,14 +64,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             const role = (data?.role as UserRole) || null
-            // console.log('[AuthContext Role fetched successfully:', role)
+
+            if (role) {
+                localStorage.setItem(`user_role_${userId}`, role)
+            }
+
             return role
 
         } catch (error) {
             console.error('[AuthContext] Exception while fetching user role:', error instanceof Error ? error.message : String(error))
             return null
         }
-    }, [])
+    }, []) // Removed dependency array effectively as it has none
 
     // Initialize authentication
     useEffect(() => {
@@ -151,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // console.log('[AuthContext] Setting up auth state change listener')
                 const {
                     data: { subscription },
-                } = supabase.auth.onAuthStateChange(async (_event, session) => {
+                } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
                     if (!mounted) return
 
                     // console.log('[AuthContext] Auth state changed:', _event)

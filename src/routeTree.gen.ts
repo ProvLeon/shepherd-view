@@ -10,12 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SeedRouteImport } from './routes/seed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FollowupsRouteImport } from './routes/followups'
+import { Route as DebugDbRouteImport } from './routes/debug-db'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MessagingIndexRouteImport } from './routes/messaging/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as CampusesIndexRouteImport } from './routes/campuses/index'
 import { Route as AttendanceIndexRouteImport } from './routes/attendance/index'
+import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as UpdateTokenRouteImport } from './routes/update.$token'
 import { Route as MembersMemberIdRouteImport } from './routes/members/$memberId'
 import { Route as CampusesCampusIdRouteImport } from './routes/campuses/$campusId'
@@ -24,6 +28,11 @@ import { Route as CampusesCategoryCategoryIdRouteImport } from './routes/campuse
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeedRoute = SeedRouteImport.update({
+  id: '/seed',
+  path: '/seed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -36,9 +45,19 @@ const FollowupsRoute = FollowupsRouteImport.update({
   path: '/followups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DebugDbRoute = DebugDbRouteImport.update({
+  id: '/debug-db',
+  path: '/debug-db',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagingIndexRoute = MessagingIndexRouteImport.update({
+  id: '/messaging/',
+  path: '/messaging/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembersIndexRoute = MembersIndexRouteImport.update({
@@ -54,6 +73,11 @@ const CampusesIndexRoute = CampusesIndexRouteImport.update({
 const AttendanceIndexRoute = AttendanceIndexRouteImport.update({
   id: '/attendance/',
   path: '/attendance/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
+  id: '/analytics/',
+  path: '/analytics/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UpdateTokenRoute = UpdateTokenRouteImport.update({
@@ -80,97 +104,125 @@ const CampusesCategoryCategoryIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/debug-db': typeof DebugDbRoute
   '/followups': typeof FollowupsRoute
   '/login': typeof LoginRoute
+  '/seed': typeof SeedRoute
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
   '/update/$token': typeof UpdateTokenRoute
+  '/analytics/': typeof AnalyticsIndexRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/campuses/': typeof CampusesIndexRoute
   '/members/': typeof MembersIndexRoute
+  '/messaging/': typeof MessagingIndexRoute
   '/campuses/category/$categoryId': typeof CampusesCategoryCategoryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/debug-db': typeof DebugDbRoute
   '/followups': typeof FollowupsRoute
   '/login': typeof LoginRoute
+  '/seed': typeof SeedRoute
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
   '/update/$token': typeof UpdateTokenRoute
+  '/analytics': typeof AnalyticsIndexRoute
   '/attendance': typeof AttendanceIndexRoute
   '/campuses': typeof CampusesIndexRoute
   '/members': typeof MembersIndexRoute
+  '/messaging': typeof MessagingIndexRoute
   '/campuses/category/$categoryId': typeof CampusesCategoryCategoryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/debug-db': typeof DebugDbRoute
   '/followups': typeof FollowupsRoute
   '/login': typeof LoginRoute
+  '/seed': typeof SeedRoute
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
   '/update/$token': typeof UpdateTokenRoute
+  '/analytics/': typeof AnalyticsIndexRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/campuses/': typeof CampusesIndexRoute
   '/members/': typeof MembersIndexRoute
+  '/messaging/': typeof MessagingIndexRoute
   '/campuses/category/$categoryId': typeof CampusesCategoryCategoryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/debug-db'
     | '/followups'
     | '/login'
+    | '/seed'
     | '/settings'
     | '/campuses/$campusId'
     | '/members/$memberId'
     | '/update/$token'
+    | '/analytics/'
     | '/attendance/'
     | '/campuses/'
     | '/members/'
+    | '/messaging/'
     | '/campuses/category/$categoryId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/debug-db'
     | '/followups'
     | '/login'
+    | '/seed'
     | '/settings'
     | '/campuses/$campusId'
     | '/members/$memberId'
     | '/update/$token'
+    | '/analytics'
     | '/attendance'
     | '/campuses'
     | '/members'
+    | '/messaging'
     | '/campuses/category/$categoryId'
   id:
     | '__root__'
     | '/'
+    | '/debug-db'
     | '/followups'
     | '/login'
+    | '/seed'
     | '/settings'
     | '/campuses/$campusId'
     | '/members/$memberId'
     | '/update/$token'
+    | '/analytics/'
     | '/attendance/'
     | '/campuses/'
     | '/members/'
+    | '/messaging/'
     | '/campuses/category/$categoryId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DebugDbRoute: typeof DebugDbRoute
   FollowupsRoute: typeof FollowupsRoute
   LoginRoute: typeof LoginRoute
+  SeedRoute: typeof SeedRoute
   SettingsRoute: typeof SettingsRoute
   CampusesCampusIdRoute: typeof CampusesCampusIdRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
   UpdateTokenRoute: typeof UpdateTokenRoute
+  AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   AttendanceIndexRoute: typeof AttendanceIndexRoute
   CampusesIndexRoute: typeof CampusesIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
+  MessagingIndexRoute: typeof MessagingIndexRoute
   CampusesCategoryCategoryIdRoute: typeof CampusesCategoryCategoryIdRoute
 }
 
@@ -181,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seed': {
+      id: '/seed'
+      path: '/seed'
+      fullPath: '/seed'
+      preLoaderRoute: typeof SeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -197,11 +256,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FollowupsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/debug-db': {
+      id: '/debug-db'
+      path: '/debug-db'
+      fullPath: '/debug-db'
+      preLoaderRoute: typeof DebugDbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messaging/': {
+      id: '/messaging/'
+      path: '/messaging'
+      fullPath: '/messaging/'
+      preLoaderRoute: typeof MessagingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/members/': {
@@ -223,6 +296,13 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/attendance/'
       preLoaderRoute: typeof AttendanceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics/': {
+      id: '/analytics/'
+      path: '/analytics'
+      fullPath: '/analytics/'
+      preLoaderRoute: typeof AnalyticsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/update/$token': {
@@ -258,15 +338,19 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DebugDbRoute: DebugDbRoute,
   FollowupsRoute: FollowupsRoute,
   LoginRoute: LoginRoute,
+  SeedRoute: SeedRoute,
   SettingsRoute: SettingsRoute,
   CampusesCampusIdRoute: CampusesCampusIdRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
   UpdateTokenRoute: UpdateTokenRoute,
+  AnalyticsIndexRoute: AnalyticsIndexRoute,
   AttendanceIndexRoute: AttendanceIndexRoute,
   CampusesIndexRoute: CampusesIndexRoute,
   MembersIndexRoute: MembersIndexRoute,
+  MessagingIndexRoute: MessagingIndexRoute,
   CampusesCategoryCategoryIdRoute: CampusesCategoryCategoryIdRoute,
 }
 export const routeTree = rootRouteImport

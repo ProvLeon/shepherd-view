@@ -8,8 +8,10 @@ import {
     LogOut,
     Menu,
     Shield,
+    TrendingUp,
     UserCog,
-    ClipboardList
+    ClipboardList,
+    MessageSquare
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
@@ -27,9 +29,11 @@ interface NavItem {
 const navItems: NavItem[] = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/members', label: 'Members', icon: Users },
+    { to: '/analytics', label: 'Analytics', icon: TrendingUp },
     { to: '/followups', label: 'Follow-ups', icon: ClipboardList, roles: ['Admin', 'Leader'] },
     { to: '/attendance', label: 'Attendance', icon: Calendar },
     { to: '/campuses', label: 'Campuses', icon: Building2, roles: ['Admin', 'Leader'] },
+    { to: '/messaging', label: 'Messaging', icon: MessageSquare, roles: ['Admin', 'Leader'] },
     { to: '/settings', label: 'Settings', icon: Settings, roles: ['Admin'] },
 ]
 

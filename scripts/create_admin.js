@@ -10,12 +10,12 @@ const sql = postgres(process.env.DATABASE_URL)
 
 // Get Supabase admin client
 const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY // Need service role key for admin operations
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY // Need service role key for admin operations
 
 if (!supabaseUrl || !supabaseServiceKey) {
     console.error('❌ Missing environment variables:')
     console.error('   VITE_SUPABASE_URL:', supabaseUrl ? '✓' : '✗')
-    console.error('   SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? '✓' : '✗')
+    console.error('   VITE_SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? '✓' : '✗')
     console.error('')
     console.error('Please add these to your .env file.')
     console.error('You can find the Service Role Key in Supabase Dashboard → Settings → API')

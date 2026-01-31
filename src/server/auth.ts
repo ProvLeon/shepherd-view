@@ -6,7 +6,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'vinxi/http'
 
 // Helper to create Supabase server client
-function createSupabaseServerClient() {
+export function createSupabaseServerClient() {
     const cookieStore = cookies()
 
     return createServerClient(

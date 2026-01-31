@@ -147,6 +147,7 @@ export const updateMember = createServerFn({ method: "POST" })
             region?: string;
             guardianContact?: string;
             guardianLocation?: string;
+            profilePicture?: string | null;
         };
 
         try {
@@ -165,6 +166,7 @@ export const updateMember = createServerFn({ method: "POST" })
             if (region !== undefined) updateData.region = region || null;
             if (guardianContact !== undefined) updateData.guardianContact = guardianContact || null;
             if (guardianLocation !== undefined) updateData.guardianLocation = guardianLocation || null;
+            if (data.profilePicture !== undefined) updateData.profilePicture = data.profilePicture || null;
 
             const [updatedMember] = await db.update(members)
                 .set(updateData)

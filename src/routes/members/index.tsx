@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Search, Filter, Plus, Phone, Mail, MoreHorizontal, X, UserPlus } from 'lucide-react'
+import { Search, Filter, Plus, Phone, Mail, MoreHorizontal, X, UserPlus, Download } from 'lucide-react'
 import { getMembers, deleteMembers, createMember } from '../../server/members'
 import { useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
+import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,8 +28,13 @@ import {
 import { MemberDetailsSheet } from '@/components/MemberDetailsSheet'
 import { MembersTableSkeleton } from '@/components/ui/skeleton'
 
+const memberSearchSchema = z.object({
+    search: z.string().optional(),
+})
+
 export const Route = createFileRoute('/members/')({
     component: MembersList,
+    validateSearch: (search) => memberSearchSchema.parse(search),
     loader: () => getMembers(),
     pendingComponent: MembersTableSkeleton,
 })
@@ -56,9 +62,10 @@ interface Member {
 
 function MembersList() {
     const members = Route.useLoaderData() as Member[]
+    const { search } = Route.useSearch()
     const router = useRouter()
     const [selectedIds, setSelectedIds] = useState<string[]>([])
-    const [searchQuery, setSearchQuery] = useState('')
+    const [searchQuery, setSearchQuery] = useState(search || '')
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedMember, setSelectedMember] = useState<Member | null>(null)
 
@@ -79,10 +86,47 @@ function MembersList() {
         birthday: ''
     })
 
-    // Filter State
+    // Filter State with Persistence
     const [showFilters, setShowFilters] = useState(false)
-    const [roleFilter, setRoleFilter] = useState<string>('')
-    const [statusFilter, setStatusFilter] = useState<string>('')
+    const [roleFilter, setRoleFilter] = useState<string>(() => localStorage.getItem('member_role_filter') || '')
+    const [statusFilter, setStatusFilter] = useState<string>(() => localStorage.getItem('member_status_filter') || '')
+    const [campusFilter, setCampusFilter] = useState<string>(() => localStorage.getItem('member_campus_filter') || '')
+    const [categoryFilter, setCategoryFilter] = useState<string>(() => localStorage.getItem('member_category_filter') || '')
+
+    // Persist filters when they change
+    const updateRoleFilter = (value: string) => {
+        setRoleFilter(value)
+        localStorage.setItem('member_role_filter', value)
+        setCurrentPage(1)
+    }
+
+    const updateStatusFilter = (value: string) => {
+        setStatusFilter(value)
+        localStorage.setItem('member_status_filter', value)
+        setCurrentPage(1)
+    }
+
+    const updateCampusFilter = (value: string) => {
+        setCampusFilter(value)
+        localStorage.setItem('member_campus_filter', value)
+        setCurrentPage(1)
+    }
+
+    const updateCategoryFilter = (value: string) => {
+        setCategoryFilter(value)
+        localStorage.setItem('member_category_filter', value)
+        setCurrentPage(1)
+    }
+
+    const clearFilters = () => {
+        updateRoleFilter('')
+        updateStatusFilter('')
+        updateCampusFilter('')
+        updateCategoryFilter('')
+        setSearchQuery('')
+    }
+
+    const activeFiltersCount = (roleFilter ? 1 : 0) + (statusFilter ? 1 : 0) + (campusFilter ? 1 : 0) + (categoryFilter ? 1 : 0)
 
     // Reset page when filters change
     useState(() => {
@@ -109,6 +153,12 @@ function MembersList() {
 
         // Status filter
         if (statusFilter && member.status !== statusFilter) return false
+
+        // Campus filter
+        if (campusFilter && member.campus !== campusFilter) return false
+
+        // Category filter
+        if (categoryFilter && member.category !== categoryFilter) return false
 
         return true
     })
@@ -145,6 +195,42 @@ function MembersList() {
         router.invalidate(); // Refresh data
     }
 
+    const handleExportCSV = () => {
+        const headers = [
+            'First Name', 'Last Name', 'Email', 'Phone',
+            'Role', 'Status', 'Campus', 'Category',
+            'Birthday', 'Residence', 'Region', 'Guardian', 'Guardian Contact'
+        ]
+
+        const csvContent = [
+            headers.join(','),
+            ...filteredMembers.map(m => [
+                m.firstName,
+                m.lastName,
+                m.email || '',
+                m.phone || '',
+                m.role,
+                m.status,
+                m.campus || '',
+                m.category || '',
+                m.birthday || '',
+                `"${m.residence || ''}"`,
+                m.region || '',
+                `"${m.guardian || ''}"`,
+                m.guardianContact || ''
+            ].join(','))
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `members_export_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     const openMemberDetails = (member: Member) => {
         setSelectedMember(member)
         setSheetOpen(true)
@@ -171,13 +257,7 @@ function MembersList() {
         }
     }
 
-    const clearFilters = () => {
-        setRoleFilter('')
-        setStatusFilter('')
-        setShowFilters(false)
-    }
 
-    const activeFiltersCount = [roleFilter, statusFilter].filter(Boolean).length
 
     return (
         <div className="space-y-6">
@@ -292,23 +372,33 @@ function MembersList() {
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Members</h1>
                     <p className="text-slate-500 text-sm">Manage {members.length} members across your camps.</p>
                 </div>
-                <div className="flex gap-2">
-                    {selectedIds.length > 0 && (
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            className="gap-2"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                            Delete ({selectedIds.length})
-                        </Button>
-                    )}
-                    <Button className="gap-2 bg-slate-900 hover:bg-slate-800" onClick={() => setShowAddMember(true)}>
-                        <Plus className="w-4 h-4" />
-                        Add Member
-                    </Button>
-                </div>
             </div>
+            <div className="flex gap-2">
+                <Button
+                    variant="outline"
+                    onClick={handleExportCSV}
+                    className="gap-2 hidden sm:flex"
+                    title="Export filtered members to CSV"
+                >
+                    <Download className="w-4 h-4" />
+                    Export
+                </Button>
+                {selectedIds.length > 0 && (
+                    <Button
+                        variant="destructive"
+                        onClick={handleDelete}
+                        className="gap-2"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Delete ({selectedIds.length})
+                    </Button>
+                )}
+                <Button className="gap-2 bg-slate-900 hover:bg-slate-800" onClick={() => setShowAddMember(true)}>
+                    <Plus className="w-4 h-4" />
+                    Add Member
+                </Button>
+            </div>
+            {/* </div> */}
 
             {/* Filters and Search */}
             <div className="flex flex-col sm:flex-row gap-4">
@@ -318,8 +408,14 @@ function MembersList() {
                         placeholder="Search by name, email, or camp..."
                         value={searchQuery}
                         onChange={(e) => {
-                            setSearchQuery(e.target.value)
-                            setCurrentPage(1) // Reset to page 1 on search
+                            const value = e.target.value
+                            setSearchQuery(value)
+                            setCurrentPage(1)
+                            // Update URL without reloading
+                            router.navigate({
+                                search: (prev: any) => ({ ...prev, search: value }),
+                                replace: true
+                            })
                         }}
                         className="pl-9 bg-white"
                     />
@@ -335,54 +431,78 @@ function MembersList() {
             </div>
 
             {/* Filter Panel */}
-            {showFilters && (
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-medium text-gray-900">Filter Members</h3>
-                        {activeFiltersCount > 0 && (
-                            <button onClick={clearFilters} className="text-sm text-agape-blue hover:underline">
-                                Clear all
-                            </button>
-                        )}
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                            <select
-                                value={roleFilter}
-                                onChange={(e) => {
-                                    setRoleFilter(e.target.value)
-                                    setCurrentPage(1)
-                                }}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
-                            >
-                                <option value="">All Roles</option>
-                                <option value="Member">Member</option>
-                                <option value="New Convert">New Convert</option>
-                                <option value="Shepherd">Shepherd</option>
-                                <option value="Leader">Leader</option>
-                                <option value="Guest">Guest</option>
-                            </select>
+            {
+                showFilters && (
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-medium text-gray-900">Filter Members</h3>
+                            {activeFiltersCount > 0 && (
+                                <button onClick={clearFilters} className="text-sm text-agape-blue hover:underline">
+                                    Clear all
+                                </button>
+                            )}
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => {
-                                    setStatusFilter(e.target.value)
-                                    setCurrentPage(1)
-                                }}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
-                            >
-                                <option value="">All Statuses</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                                <option value="Archived">Archived</option>
-                            </select>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select
+                                    value={roleFilter}
+                                    onChange={(e) => updateRoleFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
+                                >
+                                    <option value="">All Roles</option>
+                                    <option value="Member">Member</option>
+                                    <option value="New Convert">New Convert</option>
+                                    <option value="Shepherd">Shepherd</option>
+                                    <option value="Leader">Leader</option>
+                                    <option value="Guest">Guest</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => updateStatusFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
+                                >
+                                    <option value="">All Statuses</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                    <option value="Archived">Archived</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Campus</label>
+                                <select
+                                    value={campusFilter}
+                                    onChange={(e) => updateCampusFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
+                                >
+                                    <option value="">All Campuses</option>
+                                    <option value="CoHK">City of Hong Kong</option>
+                                    <option value="KNUST">KNUST</option>
+                                    <option value="Legon">Legon</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                <select
+                                    value={categoryFilter}
+                                    onChange={(e) => updateCategoryFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-agape-blue/20"
+                                >
+                                    <option value="">All Categories</option>
+                                    <option value="Student">Student</option>
+                                    <option value="Workforce">Workforce</option>
+                                    <option value="NSS">NSS</option>
+                                    <option value="Alumni">Alumni</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Table */}
             <div className="rounded-md border bg-white">
@@ -544,31 +664,33 @@ function MembersList() {
             </div>
 
             {/* Pagination */}
-            {filteredMembers.length > 0 && (
-                <div className="flex items-center justify-between px-2">
-                    <div className="text-sm text-muted-foreground">
-                        Showing {startIndex + 1} to {Math.min(endIndex, filteredMembers.length)} of {filteredMembers.length} members
+            {
+                filteredMembers.length > 0 && (
+                    <div className="flex items-center justify-between px-2">
+                        <div className="text-sm text-muted-foreground">
+                            Showing {startIndex + 1} to {Math.min(endIndex, filteredMembers.length)} of {filteredMembers.length} members
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     )
 }

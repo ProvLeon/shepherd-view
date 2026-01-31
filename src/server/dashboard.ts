@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '@/db'
 import { members, events, attendance } from '@/db/schema'
 import { eq, sql, and, gte, lte, desc } from 'drizzle-orm'
+import { getMembersNeedingAttention } from '@/server/followups'
 
 export const getDashboardStats = createServerFn({ method: "GET" })
     .handler(async () => {
@@ -103,6 +104,9 @@ export const getDashboardStats = createServerFn({ method: "GET" })
                 )
                 .limit(5);
 
+            // Get members needing attention (inactive or overdue follow-up)
+            const needsAttention = await getMembersNeedingAttention();
+
             return {
                 totalMembers: Number(totalMembers),
                 newConverts: Number(newConverts),
@@ -118,6 +122,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
                     }),
                 })),
                 birthdaysThisWeek,
+                needsAttention,
             };
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
@@ -129,6 +134,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
                 attendanceData: [],
                 upcomingEvents: [],
                 birthdaysThisWeek: [],
+                needsAttention: [],
             };
         }
     });

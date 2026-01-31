@@ -27,7 +27,7 @@ const config = defineConfig({
   ],
   build: {
     rollupOptions: {
-      external: ['postgres', 'drizzle-orm', 'dotenv', 'googleapis'],
+      // external: ['postgres', 'drizzle-orm', 'dotenv', 'googleapis'],
     },
   },
 })

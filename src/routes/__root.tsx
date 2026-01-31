@@ -2,6 +2,8 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
+import { Toaster } from 'sonner'
+
 import { AppShell } from '@/components/layout/AppShell'
 import { AuthProvider } from '@/context/AuthContext'
 import { SyncProgressProvider } from '@/context/SyncProgressContext'
@@ -58,6 +60,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             },
           ]}
         />
+        <Toaster position="top-center" richColors />
         <Scripts />
       </body>
     </html>

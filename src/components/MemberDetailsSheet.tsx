@@ -80,7 +80,7 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                 await updateMember({
                     data: {
                         id: member.id,
-                        updates: { profilePicture: result.url }
+                        profilePicture: result.url
                     }
                 })
                 onMemberUpdated?.()
@@ -297,7 +297,14 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                     {/* Profile section */}
                     <div className="relative px-6 pb-8 pt-2">
                         <div className="flex items-center gap-5">
-                            <div className="relative">
+                            <div className="relative group">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handlePhotoUpload}
+                                />
                                 {member.profilePicture ? (
                                     <button
                                         onClick={() => setShowProfileViewer(true)}
@@ -314,7 +321,25 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                                         {initials}
                                     </div>
                                 )}
-                                <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-slate-900 ${member.status === 'Active' ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+
+                                {isEditing && (
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploadingPhoto}
+                                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-white text-purple-600 shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
+                                        title="Upload photo"
+                                    >
+                                        {isUploadingPhoto ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Camera className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                )}
+
+                                {!isEditing && (
+                                    <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-slate-900 ${member.status === 'Active' ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+                                )}
                             </div>
 
                             <div className="flex-1">
@@ -673,11 +698,11 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
             {/* Profile Picture Viewer Modal - WhatsApp Style */}
             {showProfileViewer && member?.profilePicture && (
                 <div
-                    className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center animate-in fade-in duration-200"
+                    className="fixed inset-0 z-100 bg-black/95 flex items-center justify-center animate-in fade-in duration-200"
                     onClick={() => setShowProfileViewer(false)}
                 >
                     {/* Header with name and close */}
-                    <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+                    <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-linear-to-b from-black/80 to-transparent">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-white text-sm font-semibold">
                                 {initials}

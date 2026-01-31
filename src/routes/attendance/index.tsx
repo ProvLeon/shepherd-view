@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Trash2,
   Video,
-  ExternalLink
+  ExternalLink,
+  Search
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -86,6 +87,7 @@ function AttendancePage() {
   const [eventMembers, setEventMembers] = useState<MemberAttendance[]>([])
   const [loadingAttendance, setLoadingAttendance] = useState(false)
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
+  const [memberSearchQuery, setMemberSearchQuery] = useState('')
 
   const handleCreateEvent = async () => {
     if (!newEvent.name || !newEvent.date) return
@@ -143,11 +145,22 @@ function AttendancePage() {
     )
   }
 
+  const filteredMembers = eventMembers.filter(m =>
+    m.firstName.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+    m.lastName.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+    m.role.toLowerCase().includes(memberSearchQuery.toLowerCase())
+  )
+
   const toggleAllMembers = () => {
-    if (selectedMemberIds.length === eventMembers.length) {
-      setSelectedMemberIds([])
+    const visibleIds = filteredMembers.map(m => m.id)
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedMemberIds.includes(id))
+
+    if (allVisibleSelected) {
+      // Deselect all visible
+      setSelectedMemberIds(prev => prev.filter(id => !visibleIds.includes(id)))
     } else {
-      setSelectedMemberIds(eventMembers.map(m => m.id))
+      // Select all visible (union)
+      setSelectedMemberIds(prev => [...new Set([...prev, ...visibleIds])])
     }
   }
 
@@ -408,6 +421,27 @@ function AttendancePage() {
             </div>
           ) : (
             <>
+              {/* Search Bar */}
+              <div className="p-3 border-b border-gray-100 bg-white">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search members..."
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    className="pl-9 bg-gray-50 border-gray-200 focus:bg-white transition-all shadow-none"
+                  />
+                  {memberSearchQuery && (
+                    <button
+                      onClick={() => setMemberSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Bulk Actions */}
               {selectedMemberIds.length > 0 && (
                 <div className="p-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
@@ -428,52 +462,57 @@ function AttendancePage() {
                 {/* Select All */}
                 <div className="p-3 bg-gray-50 flex items-center gap-3">
                   <Checkbox
-                    checked={eventMembers.length > 0 && selectedMemberIds.length === eventMembers.length}
+                    checked={filteredMembers.length > 0 && filteredMembers.every(m => selectedMemberIds.includes(m.id))}
                     onCheckedChange={toggleAllMembers}
                   />
-                  <span className="text-sm font-medium text-gray-600">Select All ({eventMembers.length} members)</span>
+                  <span className="text-sm font-medium text-gray-600">Select All ({filteredMembers.length} members)</span>
                 </div>
 
-                {eventMembers.map((member) => (
-                  <div key={member.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={selectedMemberIds.includes(member.id)}
-                        onCheckedChange={() => toggleMemberSelect(member.id)}
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">{member.firstName} {member.lastName}</p>
-                        <p className="text-xs text-gray-500">{member.role}</p>
+                {filteredMembers.length === 0 && memberSearchQuery ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <p>No members found matching "{memberSearchQuery}"</p>
+                  </div>
+                ) :
+                  filteredMembers.map((member) => (
+                    <div key={member.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedMemberIds.includes(member.id)}
+                          onCheckedChange={() => toggleMemberSelect(member.id)}
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900">{member.firstName} {member.lastName}</p>
+                          <p className="text-xs text-gray-500">{member.role}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant={member.attendanceStatus === 'Present' ? 'default' : 'outline'}
+                          size="sm"
+                          className={member.attendanceStatus === 'Present' ? 'bg-green-600 hover:bg-green-700' : 'text-green-600 border-green-200 hover:bg-green-50'}
+                          onClick={() => handleMarkAttendance(member.id, 'Present')}
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant={member.attendanceStatus === 'Absent' ? 'default' : 'outline'}
+                          size="sm"
+                          className={member.attendanceStatus === 'Absent' ? 'bg-red-600 hover:bg-red-700' : 'text-red-600 border-red-200 hover:bg-red-50'}
+                          onClick={() => handleMarkAttendance(member.id, 'Absent')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant={member.attendanceStatus === 'Excused' ? 'default' : 'outline'}
+                          size="sm"
+                          className={member.attendanceStatus === 'Excused' ? 'bg-yellow-600 hover:bg-yellow-700' : 'text-yellow-600 border-yellow-200 hover:bg-yellow-50'}
+                          onClick={() => handleMarkAttendance(member.id, 'Excused')}
+                        >
+                          <AlertCircle className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant={member.attendanceStatus === 'Present' ? 'default' : 'outline'}
-                        size="sm"
-                        className={member.attendanceStatus === 'Present' ? 'bg-green-600 hover:bg-green-700' : 'text-green-600 border-green-200 hover:bg-green-50'}
-                        onClick={() => handleMarkAttendance(member.id, 'Present')}
-                      >
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={member.attendanceStatus === 'Absent' ? 'default' : 'outline'}
-                        size="sm"
-                        className={member.attendanceStatus === 'Absent' ? 'bg-red-600 hover:bg-red-700' : 'text-red-600 border-red-200 hover:bg-red-50'}
-                        onClick={() => handleMarkAttendance(member.id, 'Absent')}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={member.attendanceStatus === 'Excused' ? 'default' : 'outline'}
-                        size="sm"
-                        className={member.attendanceStatus === 'Excused' ? 'bg-yellow-600 hover:bg-yellow-700' : 'text-yellow-600 border-yellow-200 hover:bg-yellow-50'}
-                        onClick={() => handleMarkAttendance(member.id, 'Excused')}
-                      >
-                        <AlertCircle className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </>
           )}
