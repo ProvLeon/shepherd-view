@@ -3,7 +3,7 @@ import { db } from '@/db'
 import { camps, members, events, attendance, users, memberAssignments, followUps } from '@/db/schema'
 import { v4 as uuidv4 } from 'uuid'
 import { subWeeks } from 'date-fns'
-import { createSupabaseServerClient } from './auth'
+import { createSupabaseServerClient } from './supabase'
 import { ne, eq } from 'drizzle-orm'
 
 export const seedDatabase = createServerFn({ method: "POST" }).handler(async () => {
