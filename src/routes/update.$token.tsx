@@ -85,6 +85,13 @@ function PublicProfileUpdate() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Prevent submission if not on final step
+        if (step < 3) {
+            setStep(s => Math.min(s + 1, 3))
+            return
+        }
+
         setSubmitting(true)
         setError(null)
 
@@ -215,10 +222,10 @@ function PublicProfileUpdate() {
                         <div key={s} className="flex items-center">
                             <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${step === s
-                                        ? 'bg-purple-600 text-white'
-                                        : step > s
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-gray-200 text-gray-500'
+                                    ? 'bg-purple-600 text-white'
+                                    : step > s
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-gray-200 text-gray-500'
                                     }`}
                             >
                                 {step > s ? '✓' : s}

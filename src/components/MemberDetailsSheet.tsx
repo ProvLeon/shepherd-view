@@ -63,6 +63,25 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
 
     const [activeTab, setActiveTab] = useState<'overview' | 'followups'>('overview')
     const [isSendingLink, setIsSendingLink] = useState(false)
+    const [showProfileViewer, setShowProfileViewer] = useState(false)
+
+    const downloadProfilePicture = async () => {
+        if (!member?.profilePicture) return
+        try {
+            const response = await fetch(member.profilePicture)
+            const blob = await response.blob()
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `${member.firstName}_${member.lastName}_profile.jpg`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            window.URL.revokeObjectURL(url)
+        } catch (error) {
+            console.error('Download failed:', error)
+        }
+    }
 
     const copyToClipboard = (text: string, field: string) => {
         navigator.clipboard.writeText(text)
@@ -250,11 +269,16 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                         <div className="flex items-center gap-5">
                             <div className="relative">
                                 {member.profilePicture ? (
-                                    <img
-                                        src={member.profilePicture}
-                                        alt={`${member.firstName} ${member.lastName}`}
-                                        className="h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/20"
-                                    />
+                                    <button
+                                        onClick={() => setShowProfileViewer(true)}
+                                        className="focus:outline-none focus:ring-2 focus:ring-white/50 rounded-2xl transition-transform hover:scale-105"
+                                    >
+                                        <img
+                                            src={member.profilePicture}
+                                            alt={`${member.firstName} ${member.lastName}`}
+                                            className="h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/20 cursor-pointer"
+                                        />
+                                    </button>
                                 ) : (
                                     <div className="h-20 w-20 rounded-2xl bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-xl ring-4 ring-white/20">
                                         {initials}
@@ -615,6 +639,53 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                     )}
                 </div>
             </SheetContent>
+
+            {/* Profile Picture Viewer Modal - WhatsApp Style */}
+            {showProfileViewer && member?.profilePicture && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center animate-in fade-in duration-200"
+                    onClick={() => setShowProfileViewer(false)}
+                >
+                    {/* Header with name and close */}
+                    <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-white text-sm font-semibold">
+                                {initials}
+                            </div>
+                            <div>
+                                <p className="text-white font-medium">{member.firstName} {member.lastName}</p>
+                                <p className="text-white/60 text-sm">{member.role}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    downloadProfilePicture()
+                                }}
+                                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                                title="Download photo"
+                            >
+                                <Download className="w-5 h-5 text-white" />
+                            </button>
+                            <button
+                                onClick={() => setShowProfileViewer(false)}
+                                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                            >
+                                <X className="w-5 h-5 text-white" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Large profile image */}
+                    <img
+                        src={member.profilePicture}
+                        alt={`${member.firstName} ${member.lastName}`}
+                        className="max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </Sheet>
     )
 }
