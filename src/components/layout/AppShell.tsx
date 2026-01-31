@@ -7,18 +7,26 @@ import { AuthLoadingSkeleton } from '../ui/skeleton'
 // Routes that don't require authentication
 const PUBLIC_ROUTES = ['/login']
 
+// Routes that should render without the app shell (no sidebar)
+const isStandaloneRoute = (pathname: string) => {
+    return pathname === '/login' || pathname.startsWith('/update/')
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
     const [hasNavigated, setHasNavigated] = useState(false)
 
+    // Check if current route is standalone (no sidebar)
+    const standalone = isStandaloneRoute(location.pathname)
+
     useEffect(() => {
         if (hasNavigated) return
 
-        const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname)
+        const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname) || location.pathname.startsWith('/update/')
 
-        // On login page, allow access regardless of auth state
+        // On public routes, allow access regardless of auth state
         if (isPublicRoute) {
             return
         }
@@ -33,20 +41,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             // Not authenticated and not on public route - redirect to login
             navigate({ to: '/login' })
             setHasNavigated(true)
-        } else if (isAuthenticated && isPublicRoute) {
+        } else if (isAuthenticated && location.pathname === '/login') {
             // Authenticated and on login page - redirect to dashboard
             navigate({ to: '/' })
             setHasNavigated(true)
         }
     }, [isAuthenticated, isLoading, location.pathname, navigate, hasNavigated])
 
-    // Show loading skeleton while auth is initializing
-    if (isLoading) {
+    // Show loading skeleton while auth is initializing (but not for standalone routes)
+    if (isLoading && !standalone) {
         return <AuthLoadingSkeleton />
     }
 
-    // On login page, don't show sidebar
-    if (location.pathname === '/login') {
+    // Standalone route - render without sidebar
+    if (standalone) {
         return <>{children}</>
     }
 

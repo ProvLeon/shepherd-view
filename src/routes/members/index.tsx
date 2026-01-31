@@ -473,12 +473,12 @@ function MembersList() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center justify-end gap-1">
                                             {member.phone && (
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+                                                    className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
                                                     asChild
                                                 >
                                                     <a href={`tel:${member.phone}`} title="Call">
@@ -490,7 +490,7 @@ function MembersList() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+                                                    className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
                                                     asChild
                                                 >
                                                     <a href={`mailto:${member.email}`} title="Email">
@@ -500,12 +500,12 @@ function MembersList() {
                                             )}
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                    <Button variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-900">
                                                         <span className="sr-only">Open menu</span>
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
+                                                <DropdownMenuContent align="end" className="z-50">
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                     <DropdownMenuItem onClick={() => openMemberDetails(member)}>
                                                         View details

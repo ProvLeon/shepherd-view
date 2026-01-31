@@ -4,6 +4,7 @@ import { getDashboardStats } from '@/server/dashboard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { getWhatsAppLink, getCallLink } from '@/lib/sms'
 import { DashboardSkeleton } from '@/components/ui/skeleton'
+import { BirthdayWishes } from '@/components/BirthdayWishes'
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
@@ -234,39 +235,7 @@ function Dashboard() {
             </Link>
           </div>
           {stats.birthdaysThisWeek && stats.birthdaysThisWeek.length > 0 ? (
-            <div className="space-y-3">
-              {stats.birthdaysThisWeek.map((member: any) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-medium">
-                      {member.firstName[0]}{member.lastName[0]}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">{member.firstName} {member.lastName}</p>
-                      <p className="text-sm text-gray-500">
-                        {member.birthday ? new Date(member.birthday).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={getCallLink('0000000000')} // Will need real phone
-                      className="p-2 rounded-lg hover:bg-green-50 text-green-600"
-                    >
-                      <Phone className="w-4 h-4" />
-                    </a>
-                    <a
-                      href={getWhatsAppLink('0000000000', `Happy Birthday ${member.firstName}! 🎂`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-lg hover:bg-green-50 text-green-600"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <BirthdayWishes members={stats.birthdaysThisWeek as any[]} />
           ) : (
             <div className="text-center py-8 text-gray-400">
               <Cake className="w-10 h-10 mx-auto mb-2 opacity-50" />

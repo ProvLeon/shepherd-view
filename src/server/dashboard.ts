@@ -89,6 +89,9 @@ export const getDashboardStats = createServerFn({ method: "GET" })
                 firstName: members.firstName,
                 lastName: members.lastName,
                 birthday: members.birthday,
+                phone: members.phone,
+                role: members.role,
+                campus: members.campus,
             })
                 .from(members)
                 .where(

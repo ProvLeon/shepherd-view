@@ -38,6 +38,9 @@ export const members = pgTable('members', {
     guardianLocation: text('guardian_location'),
     birthday: date('birthday'),
     joinDate: date('join_date').defaultNow(),
+    profilePicture: text('profile_picture'), // URL to Supabase Storage
+    updateToken: text('update_token'), // Secure token for self-service update
+    tokenExpiresAt: timestamp('token_expires_at'), // When the token expires
     createdAt: timestamp('created_at').defaultNow(),
 });
 

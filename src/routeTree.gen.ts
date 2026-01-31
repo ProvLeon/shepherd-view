@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as CampusesIndexRouteImport } from './routes/campuses/index'
 import { Route as AttendanceIndexRouteImport } from './routes/attendance/index'
+import { Route as UpdateTokenRouteImport } from './routes/update.$token'
 import { Route as MembersMemberIdRouteImport } from './routes/members/$memberId'
 import { Route as CampusesCampusIdRouteImport } from './routes/campuses/$campusId'
 import { Route as CampusesCategoryCategoryIdRouteImport } from './routes/campuses/category/$categoryId'
@@ -55,6 +56,11 @@ const AttendanceIndexRoute = AttendanceIndexRouteImport.update({
   path: '/attendance/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UpdateTokenRoute = UpdateTokenRouteImport.update({
+  id: '/update/$token',
+  path: '/update/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   id: '/members/$memberId',
   path: '/members/$memberId',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/update/$token': typeof UpdateTokenRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/campuses/': typeof CampusesIndexRoute
   '/members/': typeof MembersIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/update/$token': typeof UpdateTokenRoute
   '/attendance': typeof AttendanceIndexRoute
   '/campuses': typeof CampusesIndexRoute
   '/members': typeof MembersIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/campuses/$campusId': typeof CampusesCampusIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/update/$token': typeof UpdateTokenRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/campuses/': typeof CampusesIndexRoute
   '/members/': typeof MembersIndexRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/campuses/$campusId'
     | '/members/$memberId'
+    | '/update/$token'
     | '/attendance/'
     | '/campuses/'
     | '/members/'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/campuses/$campusId'
     | '/members/$memberId'
+    | '/update/$token'
     | '/attendance'
     | '/campuses'
     | '/members'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/campuses/$campusId'
     | '/members/$memberId'
+    | '/update/$token'
     | '/attendance/'
     | '/campuses/'
     | '/members/'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   CampusesCampusIdRoute: typeof CampusesCampusIdRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
+  UpdateTokenRoute: typeof UpdateTokenRoute
   AttendanceIndexRoute: typeof AttendanceIndexRoute
   CampusesIndexRoute: typeof CampusesIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AttendanceIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/update/$token': {
+      id: '/update/$token'
+      path: '/update/$token'
+      fullPath: '/update/$token'
+      preLoaderRoute: typeof UpdateTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members/$memberId': {
       id: '/members/$memberId'
       path: '/members/$memberId'
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   CampusesCampusIdRoute: CampusesCampusIdRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
+  UpdateTokenRoute: UpdateTokenRoute,
   AttendanceIndexRoute: AttendanceIndexRoute,
   CampusesIndexRoute: CampusesIndexRoute,
   MembersIndexRoute: MembersIndexRoute,
