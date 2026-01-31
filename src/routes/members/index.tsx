@@ -430,9 +430,17 @@ function MembersList() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-xs font-semibold text-white shadow-sm">
-                                                {member.firstName?.[0]}{member.lastName?.[0]}
-                                            </div>
+                                            {member.profilePicture ? (
+                                                <img
+                                                    src={member.profilePicture}
+                                                    alt={`${member.firstName} ${member.lastName}`}
+                                                    className="h-9 w-9 rounded-full object-cover shadow-sm"
+                                                />
+                                            ) : (
+                                                <div className="h-9 w-9 rounded-full bg-linear-to-br from-slate-700 to-slate-900 flex items-center justify-center text-xs font-semibold text-white shadow-sm">
+                                                    {member.firstName?.[0]}{member.lastName?.[0]}
+                                                </div>
+                                            )}
                                             <div>
                                                 <div className="font-medium text-slate-900">
                                                     {member.firstName} {member.lastName}

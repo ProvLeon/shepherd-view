@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Phone, User, MapPin, MessageCircle, Cake, Edit2, X, Briefcase, HeartHandshake, Send, Loader2, Copy, CheckCircle, Users } from 'lucide-react'
+import { Mail, Phone, User, MapPin, MessageCircle, Cake, Edit2, X, Briefcase, HeartHandshake, Send, Loader2, Copy, CheckCircle, Users, Download } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import {
@@ -30,6 +30,7 @@ interface Member {
     region?: string | null
     guardianContact?: string | null
     guardianLocation?: string | null
+    profilePicture?: string | null
 }
 
 interface MemberDetailsSheetProps {
@@ -248,9 +249,17 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
                     <div className="relative px-6 pb-8 pt-2">
                         <div className="flex items-center gap-5">
                             <div className="relative">
-                                <div className="h-20 w-20 rounded-2xl bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-xl ring-4 ring-white/20">
-                                    {initials}
-                                </div>
+                                {member.profilePicture ? (
+                                    <img
+                                        src={member.profilePicture}
+                                        alt={`${member.firstName} ${member.lastName}`}
+                                        className="h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/20"
+                                    />
+                                ) : (
+                                    <div className="h-20 w-20 rounded-2xl bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-xl ring-4 ring-white/20">
+                                        {initials}
+                                    </div>
+                                )}
                                 <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-slate-900 ${member.status === 'Active' ? 'bg-emerald-400' : 'bg-gray-400'}`} />
                             </div>
 

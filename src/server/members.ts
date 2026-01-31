@@ -25,6 +25,7 @@ export const getMembers = createServerFn({ method: "GET" })
                 region: members.region,
                 guardianContact: members.guardianContact,
                 guardianLocation: members.guardianLocation,
+                profilePicture: members.profilePicture,
             })
                 .from(members)
                 .leftJoin(camps, eq(members.campId, camps.id))
