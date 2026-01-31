@@ -83,14 +83,9 @@ function PublicProfileUpdate() {
         validate()
     }, [token])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-
-        // Prevent submission if not on final step
-        if (step < 3) {
-            setStep(s => Math.min(s + 1, 3))
-            return
-        }
+    const handleFinalSubmit = async () => {
+        // Only allow submission from step 3
+        if (step !== 3) return
 
         setSubmitting(true)
         setError(null)
@@ -289,8 +284,8 @@ function PublicProfileUpdate() {
                     </div>
                 </div>
 
-                {/* Form Steps */}
-                <form onSubmit={handleSubmit}>
+                {/* Form Steps - Using div to prevent accidental form submission */}
+                <div>
                     {/* Step 1: Personal Information */}
                     {step === 1 && (
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4 animate-in fade-in duration-300">
@@ -472,7 +467,8 @@ function PublicProfileUpdate() {
                             </Button>
                         ) : (
                             <Button
-                                type="submit"
+                                type="button"
+                                onClick={handleFinalSubmit}
                                 disabled={submitting}
                                 className="flex-1 h-12 bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-medium shadow-lg shadow-green-200"
                             >
@@ -487,7 +483,7 @@ function PublicProfileUpdate() {
                             </Button>
                         )}
                     </div>
-                </form>
+                </div>
 
                 <p className="text-center text-xs text-gray-400 mt-6">
                     Agape Incorporated Ministries © 2026
