@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Mail, Phone, User, MapPin, MessageCircle, Cake, Edit2, X, Briefcase, HeartHandshake, Send, Loader2, Copy, CheckCircle, Users, Download } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Mail, Phone, User, MapPin, MessageCircle, Cake, Edit2, X, Briefcase, HeartHandshake, Send, Loader2, Copy, CheckCircle, Users, Download, Camera } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import {
@@ -11,6 +11,7 @@ import { MemberFollowUps } from './MemberFollowUps'
 import { generateUpdateToken, getUpdateLinkMessage } from '@/server/profile-update'
 import { sendArkeselSms } from '@/server/sms'
 import { getWhatsAppLink } from '@/lib/sms'
+import { uploadProfilePicture } from '@/lib/storage'
 
 interface Member {
     id: string
@@ -64,6 +65,35 @@ export function MemberDetailsSheet({ member, open, onOpenChange, onMemberUpdated
     const [activeTab, setActiveTab] = useState<'overview' | 'followups'>('overview')
     const [isSendingLink, setIsSendingLink] = useState(false)
     const [showProfileViewer, setShowProfileViewer] = useState(false)
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || !member) return
+
+        setIsUploadingPhoto(true)
+        try {
+            const result = await uploadProfilePicture(file, member.id)
+            if (result.success && result.url) {
+                // Update member with new profile picture
+                await updateMember({
+                    data: {
+                        id: member.id,
+                        updates: { profilePicture: result.url }
+                    }
+                })
+                onMemberUpdated?.()
+            } else {
+                console.error('Upload failed:', result.error)
+            }
+        } catch (error) {
+            console.error('Photo upload error:', error)
+        } finally {
+            setIsUploadingPhoto(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
 
     const downloadProfilePicture = async () => {
         if (!member?.profilePicture) return
