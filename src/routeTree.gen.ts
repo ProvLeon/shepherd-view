@@ -19,6 +19,7 @@ import { Route as MessagingIndexRouteImport } from './routes/messaging/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as CampusesIndexRouteImport } from './routes/campuses/index'
 import { Route as AttendanceIndexRouteImport } from './routes/attendance/index'
+import { Route as AssignmentsIndexRouteImport } from './routes/assignments/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as UpdateTokenRouteImport } from './routes/update.$token'
 import { Route as MembersMemberIdRouteImport } from './routes/members/$memberId'
@@ -75,6 +76,11 @@ const AttendanceIndexRoute = AttendanceIndexRouteImport.update({
   path: '/attendance/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssignmentsIndexRoute = AssignmentsIndexRouteImport.update({
+  id: '/assignments/',
+  path: '/assignments/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
   id: '/analytics/',
   path: '/analytics/',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/members/$memberId': typeof MembersMemberIdRoute
   '/update/$token': typeof UpdateTokenRoute
   '/analytics/': typeof AnalyticsIndexRoute
+  '/assignments/': typeof AssignmentsIndexRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/campuses/': typeof CampusesIndexRoute
   '/members/': typeof MembersIndexRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/members/$memberId': typeof MembersMemberIdRoute
   '/update/$token': typeof UpdateTokenRoute
   '/analytics': typeof AnalyticsIndexRoute
+  '/assignments': typeof AssignmentsIndexRoute
   '/attendance': typeof AttendanceIndexRoute
   '/campuses': typeof CampusesIndexRoute
   '/members': typeof MembersIndexRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/members/$memberId': typeof MembersMemberIdRoute
   '/update/$token': typeof UpdateTokenRoute
   '/analytics/': typeof AnalyticsIndexRoute
+  '/assignments/': typeof AssignmentsIndexRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/campuses/': typeof CampusesIndexRoute
   '/members/': typeof MembersIndexRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/members/$memberId'
     | '/update/$token'
     | '/analytics/'
+    | '/assignments/'
     | '/attendance/'
     | '/campuses/'
     | '/members/'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/members/$memberId'
     | '/update/$token'
     | '/analytics'
+    | '/assignments'
     | '/attendance'
     | '/campuses'
     | '/members'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/members/$memberId'
     | '/update/$token'
     | '/analytics/'
+    | '/assignments/'
     | '/attendance/'
     | '/campuses/'
     | '/members/'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   MembersMemberIdRoute: typeof MembersMemberIdRoute
   UpdateTokenRoute: typeof UpdateTokenRoute
   AnalyticsIndexRoute: typeof AnalyticsIndexRoute
+  AssignmentsIndexRoute: typeof AssignmentsIndexRoute
   AttendanceIndexRoute: typeof AttendanceIndexRoute
   CampusesIndexRoute: typeof CampusesIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AttendanceIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assignments/': {
+      id: '/assignments/'
+      path: '/assignments'
+      fullPath: '/assignments/'
+      preLoaderRoute: typeof AssignmentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics/': {
       id: '/analytics/'
       path: '/analytics'
@@ -347,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   MembersMemberIdRoute: MembersMemberIdRoute,
   UpdateTokenRoute: UpdateTokenRoute,
   AnalyticsIndexRoute: AnalyticsIndexRoute,
+  AssignmentsIndexRoute: AssignmentsIndexRoute,
   AttendanceIndexRoute: AttendanceIndexRoute,
   CampusesIndexRoute: CampusesIndexRoute,
   MembersIndexRoute: MembersIndexRoute,

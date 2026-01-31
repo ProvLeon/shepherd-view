@@ -106,3 +106,11 @@ export const memberAssignments = pgTable('member_assignments', {
     assignedAt: timestamp('assigned_at').defaultNow(),
 });
 
+// Leader-Campus Assignments (Many-to-Many)
+export const leaderCampuses = pgTable('leader_campuses', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    leaderId: uuid('leader_id').references(() => users.id).notNull(),
+    campus: campusEnum('campus').notNull(),
+    assignedAt: timestamp('assigned_at').defaultNow(),
+});
+

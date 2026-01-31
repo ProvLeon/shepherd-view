@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
     { to: '/followups', label: 'Follow-ups', icon: ClipboardList, roles: ['Admin', 'Leader'] },
     { to: '/attendance', label: 'Attendance', icon: Calendar },
     { to: '/campuses', label: 'Campuses', icon: Building2, roles: ['Admin', 'Leader'] },
+    { to: '/assignments', label: 'Assignments', icon: UserCog, roles: ['Admin', 'Leader'] },
     { to: '/messaging', label: 'Messaging', icon: MessageSquare, roles: ['Admin', 'Leader'] },
     { to: '/settings', label: 'Settings', icon: Settings, roles: ['Admin'] },
 ]

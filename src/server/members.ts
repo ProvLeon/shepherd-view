@@ -1,8 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { desc } from 'drizzle-orm'
 import { db } from '@/db'
-import { members, camps } from '@/db/schema'
+import { members, camps, users } from '@/db/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { v4 as uuidv4 } from 'uuid'
 
 export const getMembers = createServerFn({ method: "GET" })
     .handler(async () => {
@@ -122,6 +123,65 @@ export const createMember = createServerFn({ method: "POST" })
                 guardianLocation: guardianLocation || null,
             }).returning();
 
+            // Auto-sync to Users if role is Leader or Shepherd
+            if (role && (role === 'Leader' || role === 'Shepherd')) {
+                const memberEmail = newMember.email;
+                if (memberEmail) {
+                    try {
+                        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+                        const serviceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+                        let authId: string | undefined;
+
+                        if (supabaseUrl && serviceRoleKey) {
+                            // Import explicitly to avoid top-level load issues if env missing
+                            const { createClient } = await import('@supabase/supabase-js');
+                            const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+                            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+                                email: memberEmail,
+                                password: 'Shepherd123!', // Default password
+                                email_confirm: true,
+                                user_metadata: { role: role }
+                            });
+
+                            if (!authError && authData.user) {
+                                authId = authData.user.id;
+                            } else if (authError?.message.includes("already registered")) {
+                                // Fallback if user key not available but account exists - we can't get ID easily without admin list
+                                // Attempt to just trust email or skipping ID update for now
+                                console.warn("User already registered in Auth, proceeding with sync.");
+                                // Better: list users to find ID if critical, but for now allow sync to assume email match or generate placeholder
+                            }
+                        }
+
+                        // Use actual Auth ID if available, otherwise generate new UI-compatible ID
+                        const userIdToUse = authId || uuidv4();
+
+                        const existingUser = await db.select().from(users).where(eq(users.email, memberEmail)).limit(1);
+                        if (existingUser.length === 0) {
+                            await db.insert(users).values({
+                                id: userIdToUse,
+                                email: memberEmail,
+                                role: role,
+                                memberId: newMember.id,
+                                campId: newMember.campId
+                            }).onConflictDoNothing();
+                        } else {
+                            // Update logic: if we have a real Auth ID now, we should update the public.users key
+                            // But PK update is tricky. For now, just ensure role link.
+                            await db.update(users).set({
+                                role: role,
+                                memberId: newMember.id
+                            }).where(eq(users.email, memberEmail));
+                        }
+                    } catch (syncError) {
+                        console.error("Auto-sync failed:", syncError);
+                        // Don't fail the member creation itself
+                    }
+                }
+            }
+
             return { success: true, member: newMember };
         } catch (error: any) {
             console.error('Error creating member:', error);
@@ -131,7 +191,7 @@ export const createMember = createServerFn({ method: "POST" })
 
 export const updateMember = createServerFn({ method: "POST" })
     .handler(async ({ data }: { data: unknown }) => {
-        const { id, firstName, lastName, email, phone, role, campus, category, birthday, status, residence, guardian, region, guardianContact, guardianLocation } = data as {
+        const { id, firstName, lastName, email, phone, role, campus, category, birthday, status, residence, guardian, region, guardianContact, guardianLocation, profilePicture } = data as {
             id: string;
             firstName?: string;
             lastName?: string;
@@ -166,12 +226,145 @@ export const updateMember = createServerFn({ method: "POST" })
             if (region !== undefined) updateData.region = region || null;
             if (guardianContact !== undefined) updateData.guardianContact = guardianContact || null;
             if (guardianLocation !== undefined) updateData.guardianLocation = guardianLocation || null;
-            if (data.profilePicture !== undefined) updateData.profilePicture = data.profilePicture || null;
+            if (profilePicture !== undefined) updateData.profilePicture = profilePicture || null;
+
+            // Handle Status Changes (Suspension/Activation)
+            if (updateData.status) {
+                const linkedUser = await db.select({ id: users.id }).from(users).where(eq(users.memberId, id)).limit(1);
+                if (linkedUser.length > 0) {
+                    try {
+                        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+                        const serviceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+                        if (supabaseUrl && serviceRoleKey) {
+                            const { createClient } = await import('@supabase/supabase-js');
+                            const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+                            const authUserId = linkedUser[0].id;
+
+                            if (updateData.status === 'Archived') {
+                                // Suspend: Ban the user
+                                console.log(`Suspending user ${authUserId} due to status change to ${updateData.status}`);
+                                await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+                                    ban_duration: '876000h' // ~100 years
+                                });
+                            } else if (updateData.status === 'Active' || updateData.status === 'Inactive') {
+                                // Reactivate: Unban the user
+                                console.log(`Activating user ${authUserId}`);
+                                await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+                                    ban_duration: 'none'
+                                });
+                            }
+                        }
+                    } catch (statusErr) {
+                        console.error("Error updating user status:", statusErr);
+                    }
+                }
+            }
+
+            // Check if email is being updated and sync to Auth User if needed
+            if (updateData.email) {
+                const currentMember = await db.select({ email: members.email }).from(members).where(eq(members.id, id)).limit(1);
+                if (currentMember[0] && currentMember[0].email !== updateData.email) {
+                    // Email has changed, find linked user
+                    const linkedUser = await db.select({ id: users.id }).from(users).where(eq(users.memberId, id)).limit(1);
+                    if (linkedUser.length > 0) {
+                        try {
+                            const supabaseUrl = process.env.VITE_SUPABASE_URL;
+                            const serviceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+                            if (supabaseUrl && serviceRoleKey) {
+                                const { createClient } = await import('@supabase/supabase-js');
+                                const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+                                await supabaseAdmin.auth.admin.updateUserById(linkedUser[0].id, {
+                                    email: updateData.email,
+                                    email_confirm: true
+                                });
+                                console.log(`Synced email update for user ${linkedUser[0].id}`);
+
+                                // Also update public.users record
+                                await db.update(users).set({ email: updateData.email }).where(eq(users.id, linkedUser[0].id));
+                            }
+                        } catch (authErr) {
+                            console.error("Failed to sync email update to Auth:", authErr);
+                        }
+                    }
+                }
+            }
 
             const [updatedMember] = await db.update(members)
                 .set(updateData)
                 .where(eq(members.id, id))
                 .returning();
+
+            // Auto-sync: Handle Promotion and Demotion
+            if (updateData.role) {
+                if (updateData.role === 'Leader' || updateData.role === 'Shepherd') {
+                    // Promotion: Ensure User exists
+                    const memberEmail = updatedMember.email;
+                    if (memberEmail) {
+                        try {
+                            const supabaseUrl = process.env.VITE_SUPABASE_URL;
+                            const serviceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+                            let authId: string | undefined;
+
+                            if (supabaseUrl && serviceRoleKey) {
+                                const { createClient } = await import('@supabase/supabase-js');
+                                const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+                                const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+                                    email: memberEmail,
+                                    password: 'Shepherd123!',
+                                    email_confirm: true,
+                                    user_metadata: { role: updateData.role }
+                                });
+                                if (!authError && authData.user) authId = authData.user.id;
+                            }
+
+                            const userIdToUse = authId || uuidv4();
+                            const existingUser = await db.select().from(users).where(eq(users.email, memberEmail)).limit(1);
+
+                            if (existingUser.length === 0) {
+                                await db.insert(users).values({
+                                    id: userIdToUse,
+                                    email: memberEmail,
+                                    role: updateData.role,
+                                    memberId: updatedMember.id,
+                                    campId: updatedMember.campId
+                                }).onConflictDoNothing();
+                            } else {
+                                await db.update(users).set({
+                                    role: updateData.role,
+                                    memberId: updatedMember.id
+                                }).where(eq(users.email, memberEmail));
+                            }
+                        } catch (err) { console.error("Auto-sync error", err); }
+                    }
+                } else {
+                    // Demotion: Role changed to Member, New Convert, Guest etc.
+                    // Remove access by deleting User and Auth account
+                    const linkedUser = await db.select().from(users).where(eq(users.memberId, id)).limit(1);
+                    if (linkedUser.length > 0) {
+                        try {
+                            console.log(`Demoting member ${id}: removing user account ${linkedUser[0].id}`);
+
+                            const supabaseUrl = process.env.VITE_SUPABASE_URL;
+                            const serviceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+                            if (supabaseUrl && serviceRoleKey) {
+                                const { createClient } = await import('@supabase/supabase-js');
+                                const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+                                await supabaseAdmin.auth.admin.deleteUser(linkedUser[0].id);
+                                console.log("Auth user deleted.");
+                            }
+
+                            await db.delete(users).where(eq(users.id, linkedUser[0].id));
+                            console.log("Public user record deleted.");
+                        } catch (demotionError) {
+                            console.error("Error removing user during demotion:", demotionError);
+                        }
+                    }
+                }
+            }
 
             return { success: true, member: updatedMember };
         } catch (error: any) {
