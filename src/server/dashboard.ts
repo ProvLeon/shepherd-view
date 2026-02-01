@@ -9,11 +9,14 @@ export const getDashboardStats = createServerFn({ method: "GET" })
   .handler(async () => {
     try {
       const currentUser = await getCurrentUser()
+      console.log('🔍 DASHBOARD DEBUG: Current user:', { role: currentUser?.role, campId: currentUser?.campId })
 
       // Build base filter for non-Admin users
       const campFilter = currentUser && currentUser.role !== 'Admin' && currentUser.campId
         ? eq(members.campId, currentUser.campId)
         : undefined
+
+      console.log('🔍 DASHBOARD DEBUG: Camp filter applied:', !!campFilter)
 
       // Get total members count
       const totalConditions = [campFilter].filter(Boolean)

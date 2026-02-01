@@ -1,14 +1,52 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '@/db'
-import { events, attendance, members, memberAssignments } from '@/db/schema'
+import { events, attendance, members, memberAssignments, users } from '@/db/schema'
 import { eq, desc, sql, and, inArray } from 'drizzle-orm'
-import { getCurrentUser } from './auth'
+import { createSupabaseServerClient } from './supabase'
+
+// Helper function to get current user from context
+async function getCurrentUserFromContext(context: any) {
+  try {
+    const supabase = createSupabaseServerClient(context)
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      return null
+    }
+
+    // Get user profile from our database
+    const [userProfile] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+
+    if (!userProfile) {
+      return null
+    }
+
+    return {
+      id: user.id,
+      email: user.email || '',
+      role: userProfile.role,
+      memberId: userProfile.memberId,
+      campId: userProfile.campId || '',
+    }
+  } catch (error) {
+    console.error('[Helper] Error getting current user:', error)
+    return null
+  }
+}
 
 // Get all events with attendance counts (filtered by user's camp)
 export const getEvents = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       // Build where conditions
       const whereConditions = []
@@ -25,6 +63,7 @@ export const getEvents = createServerFn({ method: "GET" })
         meetingUrl: events.meetingUrl,
         isRecurring: events.isRecurring,
         createdAt: events.createdAt,
+        campId: events.campId,
       })
         .from(events)
         .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
@@ -75,8 +114,12 @@ export const getEvents = createServerFn({ method: "GET" })
 
 // Create a new event
 export const createEvent = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: unknown }) => {
-    const { name, date, type, description, meetingUrl } = data as {
+  .handler(async (context) => {
+    if (!context.data) {
+      return { success: false, message: "No data provided" }
+    }
+
+    const { name, date, type, description, meetingUrl } = context.data as {
       name: string
       date: string
       type: 'Service' | 'Retreat' | 'Meeting' | 'Outreach'
@@ -85,7 +128,7 @@ export const createEvent = createServerFn({ method: "POST" })
     }
 
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }
@@ -113,9 +156,9 @@ export const createEvent = createServerFn({ method: "POST" })
 // Get attendance for a specific event (with RBAC)
 export const getEventAttendance = createServerFn({ method: "GET" })
   .inputValidator((data: { eventId: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return []
@@ -127,7 +170,7 @@ export const getEventAttendance = createServerFn({ method: "GET" })
         campId: events.campId,
       })
         .from(events)
-        .where(eq(events.id, data.eventId))
+        .where(eq(events.id, context.data.eventId))
         .limit(1)
 
       if (!eventToAccess[0]) {
@@ -139,18 +182,16 @@ export const getEventAttendance = createServerFn({ method: "GET" })
         return []
       }
 
-      // For Shepherds, only show assigned members
+      // For Shepherds, show all members in their camp but only allow editing assigned ones
       if (currentUser.role === 'Shepherd') {
+        // Get assigned member IDs for canEdit flag
         const assignedMembers = await db.select({ memberId: memberAssignments.memberId })
           .from(memberAssignments)
           .where(eq(memberAssignments.shepherdId, currentUser.id))
 
-        if (assignedMembers.length === 0) {
-          return []
-        }
+        const assignedIds = new Set(assignedMembers.map(a => a.memberId))
 
-        const memberIdsList = assignedMembers.map(a => a.memberId)
-
+        // Fetch ALL active members in the Shepherd's camp
         const allMembers = await db.select({
           id: members.id,
           firstName: members.firstName,
@@ -161,13 +202,13 @@ export const getEventAttendance = createServerFn({ method: "GET" })
           .from(members)
           .where(and(
             eq(members.status, 'Active'),
-            inArray(members.id, memberIdsList)
+            currentUser.campId ? eq(members.campId, currentUser.campId) : undefined
           ))
 
         // Get attendance records for this event
         const attendanceRecords = await db.select()
           .from(attendance)
-          .where(eq(attendance.eventId, data.eventId))
+          .where(eq(attendance.eventId, context.data.eventId))
 
         // Map attendance status to members
         const membersWithAttendance = allMembers.map(member => {
@@ -177,6 +218,7 @@ export const getEventAttendance = createServerFn({ method: "GET" })
             attendanceId: record?.id || null,
             attendanceStatus: record?.status || null,
             notes: record?.notes || null,
+            canEdit: assignedIds.has(member.id), // Only assigned members can be edited
           }
         })
 
@@ -203,7 +245,7 @@ export const getEventAttendance = createServerFn({ method: "GET" })
       // Get attendance records for this event
       const attendanceRecords = await db.select()
         .from(attendance)
-        .where(eq(attendance.eventId, data.eventId))
+        .where(eq(attendance.eventId, context.data.eventId))
 
       // Map attendance status to members
       const membersWithAttendance = allMembers.map(member => {
@@ -213,6 +255,7 @@ export const getEventAttendance = createServerFn({ method: "GET" })
           attendanceId: record?.id || null,
           attendanceStatus: record?.status || null,
           notes: record?.notes || null,
+          canEdit: true, // Admins and Leaders can edit all members in their scope
         }
       })
 
@@ -225,8 +268,12 @@ export const getEventAttendance = createServerFn({ method: "GET" })
 
 // Mark attendance for a member at an event
 export const markAttendance = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: unknown }) => {
-    const { eventId, memberId, status, notes } = data as {
+  .handler(async (context) => {
+    if (!context.data) {
+      return { success: false, message: "No data provided" }
+    }
+
+    const { eventId, memberId, status, notes } = context.data as {
       eventId: string
       memberId: string
       status: 'Present' | 'Absent' | 'Excused'
@@ -234,7 +281,7 @@ export const markAttendance = createServerFn({ method: "POST" })
     }
 
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }
@@ -264,10 +311,10 @@ export const markAttendance = createServerFn({ method: "POST" })
           .limit(1)
 
         if (assignment.length === 0) {
-          return { success: false, message: "Unauthorized" }
+          return { success: false, message: "Unauthorized - member not assigned to you" }
         }
       } else if (currentUser.role === 'Leader' && memberToCheck[0].campId !== currentUser.campId) {
-        return { success: false, message: "Unauthorized" }
+        return { success: false, message: "Unauthorized - member not in your camp" }
       }
 
       // Check if record exists
@@ -301,15 +348,19 @@ export const markAttendance = createServerFn({ method: "POST" })
 
 // Bulk mark attendance for multiple members
 export const bulkMarkAttendance = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: unknown }) => {
-    const { eventId, memberIds, status } = data as {
+  .handler(async (context) => {
+    if (!context.data) {
+      return { success: false, message: "No data provided" }
+    }
+
+    const { eventId, memberIds, status } = context.data as {
       eventId: string
       memberIds: string[]
       status: 'Present' | 'Absent' | 'Excused'
     }
 
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }
@@ -333,13 +384,13 @@ export const bulkMarkAttendance = createServerFn({ method: "POST" })
 
         for (const memberId of memberIds) {
           if (!assignedMemberIds.includes(memberId)) {
-            return { success: false, message: "Unauthorized to mark attendance for this member" }
+            return { success: false, message: "Unauthorized to mark attendance for all selected members" }
           }
         }
       } else if (currentUser.role === 'Leader') {
         for (const member of membersToCheck) {
           if (member.campId !== currentUser.campId) {
-            return { success: false, message: "Unauthorized to mark attendance for this member" }
+            return { success: false, message: "Unauthorized to mark attendance for members outside your camp" }
           }
         }
       }
@@ -375,11 +426,15 @@ export const bulkMarkAttendance = createServerFn({ method: "POST" })
 
 // Delete an event
 export const deleteEvent = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: unknown }) => {
-    const { eventId } = data as { eventId: string }
+  .handler(async (context) => {
+    if (!context.data) {
+      return { success: false, message: "No data provided" }
+    }
+
+    const { eventId } = context.data as { eventId: string }
 
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }

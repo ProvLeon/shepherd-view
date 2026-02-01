@@ -5,131 +5,138 @@ import { eq } from 'drizzle-orm'
 import { createSupabaseServerClient } from './supabase'
 
 // Get current authenticated user with their role
-export const getCurrentUser = createServerFn({ method: "GET" })
-    .handler(async () => {
-        try {
-            const supabase = createSupabaseServerClient()
-            const { data: { user }, error } = await supabase.auth.getUser()
+export const getCurrentUser = createServerFn({ method: "GET" }).handler(
+  async (context) => {
+    try {
+      // Create Supabase client with the context
+      const supabase = createSupabaseServerClient(context)
 
-            if (error || !user) {
-                return null
-            }
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser()
 
-            // Get user profile from our database
-            const [userProfile] = await db.select()
-                .from(users)
-                .where(eq(users.id, user.id))
-                .limit(1)
+      if (error || !user) {
+        console.log('[Auth] No authenticated user')
+        return null
+      }
 
-            if (!userProfile) {
-                // User exists in auth but not in our DB yet
-                return {
-                    id: user.id,
-                    email: user.email,
-                    role: null,
-                    needsSetup: true,
-                }
-            }
+      // Get user profile from our database
+      const [userProfile] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1)
 
-            return {
-                id: user.id,
-                email: user.email,
-                role: userProfile.role,
-                memberId: userProfile.memberId,
-                campId: userProfile.campId,
-                needsSetup: false,
-            }
-        } catch (error) {
-            console.error('Error getting current user:', error)
-            return null
-        }
-    })
+      if (!userProfile) {
+        console.log('[Auth] User in auth but not in DB:', user.id)
+        return null
+      }
+
+      return {
+        id: user.id,
+        email: user.email || '',
+        role: userProfile.role,
+        memberId: userProfile.memberId,
+        campId: userProfile.campId || '',
+      }
+    } catch (error) {
+      console.error('[Auth] Error in getCurrentUser:', error)
+      return null
+    }
+  }
+)
 
 // Sign in with email and password
-export const signIn = createServerFn({ method: "POST" })
-    .handler(async ({ data }: { data: unknown }) => {
-        const { email, password } = data as { email: string; password: string }
+export const signIn = createServerFn({ method: 'POST' }).handler(
+  async (context) => {
+    const { email, password } = context.data as { email: string; password: string }
 
-        try {
-            const supabase = createSupabaseServerClient()
-            const { data: authData, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            })
+    try {
+      const supabase = createSupabaseServerClient(context)
 
-            if (error) {
-                return { success: false, message: error.message }
-            }
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-            return { success: true, user: authData.user }
-        } catch (error: any) {
-            console.error('Error signing in:', error)
-            return { success: false, message: error.message }
-        }
-    })
+      if (error) {
+        return { success: false, message: error.message }
+      }
+
+      return { success: true, user: authData.user }
+    } catch (error: any) {
+      console.error('[Auth] Sign in error:', error)
+      return { success: false, message: error.message }
+    }
+  }
+)
 
 // Sign out
-export const signOut = createServerFn({ method: "POST" })
-    .handler(async () => {
-        try {
-            const supabase = createSupabaseServerClient()
-            await supabase.auth.signOut()
-            return { success: true }
-        } catch (error: any) {
-            console.error('Error signing out:', error)
-            return { success: false, message: error.message }
-        }
-    })
+export const signOut = createServerFn({ method: 'POST' }).handler(async (context) => {
+  try {
+    const supabase = createSupabaseServerClient(context)
+    await supabase.auth.signOut()
+    return { success: true }
+  } catch (error: any) {
+    console.error('[Auth] Sign out error:', error)
+    return { success: false, message: error.message }
+  }
+})
 
 // Create a new user account (Admin only)
-export const createUserAccount = createServerFn({ method: "POST" })
-    .handler(async ({ data }: { data: unknown }) => {
-        const { email, password, role, memberId, campId } = data as {
-            email: string
-            password: string
-            role: 'Admin' | 'Leader' | 'Shepherd'
-            memberId?: string
-            campId?: string
-        }
+export const createUserAccount = createServerFn({ method: 'POST' }).handler(
+  async (context) => {
+    const { email, password, role, memberId, campId } = context.data as {
+      email: string
+      password: string
+      role: 'Admin' | 'Leader' | 'Shepherd'
+      memberId?: string
+      campId?: string
+    }
 
-        try {
-            const supabase = createSupabaseServerClient()
+    try {
+      const supabase = createSupabaseServerClient(context)
 
-            // Create auth user
-            const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-                email,
-                password,
-                email_confirm: true,
-            })
+      // Create auth user
+      const { data: authData, error: authError } =
+        await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        })
 
-            if (authError) {
-                return { success: false, message: authError.message }
-            }
+      if (authError) {
+        return { success: false, message: authError.message }
+      }
 
-            // Create user profile in our database
-            const [newUser] = await db.insert(users).values({
-                id: authData.user.id,
-                email,
-                role,
-                memberId: memberId || null,
-                campId: campId || null,
-            }).returning()
+      // Create user profile in our database
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          id: authData.user.id,
+          email,
+          role,
+          memberId: memberId || null,
+          campId: campId || null,
+        })
+        .returning()
 
-            return { success: true, user: newUser }
-        } catch (error: any) {
-            console.error('Error creating user:', error)
-            return { success: false, message: error.message }
-        }
-    })
+      return { success: true, user: newUser }
+    } catch (error: any) {
+      console.error('[Auth] Create user error:', error)
+      return { success: false, message: error.message }
+    }
+  }
+)
 
 // Get all users (Admin only)
-export const getUsers = createServerFn({ method: "GET" })
-    .handler(async () => {
-        try {
-            const allUsers = await db.select().from(users)
-            return allUsers
-        } catch (error) {
-            console.error('Error fetching users:', error)
-            return []
-        }
-    })
+export const getUsers = createServerFn({ method: 'GET' }).handler(async () => {
+  try {
+    const allUsers = await db.select().from(users)
+    return allUsers
+  } catch (error) {
+    console.error('[Auth] Get users error:', error)
+    return []
+  }
+})

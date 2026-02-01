@@ -1,21 +1,29 @@
-import { createServerClient } from '@supabase/ssr'
-import { parseCookies, setCookie, getEvent } from 'vinxi/http'
+import { createServerClient, parseCookieHeader, serializeCookieHeader } from '@supabase/ssr'
 
 /**
- * Creates a Supabase Server Client with proper Vinxi cookie handling
- * This should be called inside a server function handler where the HTTP event context is available
+ * Creates a Supabase Server Client for TanStack Start
  *
- * The Supabase SSR library requires both getAll() and setAll() methods for proper
- * cookie management in server-side rendering contexts.
+ * Pass the server context that TanStack Start provides
+ * The context contains request/response information
  */
-export function createSupabaseServerClient() {
-  let event: any = null
+export function createSupabaseServerClient(context: any) {
+  // Extract request from context
+  const request = context?.request || context?.req
+  const response = context?.response || context?.res
 
-  try {
-    event = getEvent()
-  } catch (error) {
-    // getEvent() may fail in certain contexts like initial hydration or SSR
-    console.warn('[Supabase] Event context not available, using fallback cookie handling')
+  if (!request) {
+    console.warn('[Supabase] No request in context')
+    // Return a client anyway, it just won't have cookies
+    return createServerClient(
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return [] },
+          setAll() { },
+        },
+      }
+    )
   }
 
   return createServerClient(
@@ -23,42 +31,39 @@ export function createSupabaseServerClient() {
     process.env.VITE_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        /**
-         * getAll() is called by Supabase to retrieve all cookies from the request
-         * It should return an array of { name, value } objects
-         */
         getAll() {
-          if (!event) {
-            return []
-          }
-
           try {
-            const cookies = parseCookies(event)
-            return Object.entries(cookies).map(([name, value]) => ({
-              name,
-              value,
-            }))
+            const cookieHeader = request.headers?.get?.('cookie') ||
+              request.headers?.cookie || ''
+
+            if (!cookieHeader) {
+              return []
+            }
+
+            return parseCookieHeader(cookieHeader)
           } catch (error) {
-            console.warn('[Supabase] Failed to parse cookies:', error)
+            console.error('[Supabase] Error getting cookies:', error)
             return []
           }
         },
-        /**
-         * setAll() is called by Supabase when it needs to set cookies in the response
-         * Typically this happens after authentication operations
-         */
+
         setAll(cookiesToSet) {
-          if (!event) {
-            console.warn('[Supabase] Event context not available, cannot set cookies')
-            return
-          }
+          if (!response) return
 
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              setCookie(event, name, value, options)
+              const serialized = serializeCookieHeader(name, value, options)
+
+              if (response.headers?.append) {
+                response.headers.append('Set-Cookie', serialized)
+              } else if (response.setHeader) {
+                const existing = response.getHeader?.('Set-Cookie') || []
+                const headers = Array.isArray(existing) ? existing : [existing]
+                response.setHeader('Set-Cookie', [...headers, serialized])
+              }
             })
           } catch (error) {
-            console.warn('[Supabase] Failed to set cookies:', error)
+            console.error('[Supabase] Error setting cookies:', error)
           }
         },
       },

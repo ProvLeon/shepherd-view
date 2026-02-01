@@ -3,25 +3,71 @@ import { desc, and, eq, inArray, sql, or } from 'drizzle-orm'
 import { db } from '@/db'
 import { members, camps, users, memberAssignments } from '@/db/schema'
 import { v4 as uuidv4 } from 'uuid'
-import { getCurrentUser } from './auth'
+import { createSupabaseServerClient } from './supabase'
+
+// Helper function to get current user from context
+async function getCurrentUserFromContext(context: any) {
+  try {
+    const supabase = createSupabaseServerClient(context)
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      return null
+    }
+
+    // Get user profile from our database
+    const [userProfile] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+
+    if (!userProfile) {
+      return null
+    }
+
+    return {
+      id: user.id,
+      email: user.email || '',
+      role: userProfile.role,
+      memberId: userProfile.memberId,
+      campId: userProfile.campId || '',
+    }
+  } catch (error) {
+    console.error('[Helper] Error getting current user:', error)
+    return null
+  }
+}
 
 // Get members with RBAC scoping and canEdit flag
 export const getMembers = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
+      console.log('🔍 GET_MEMBERS DEBUG - Current user:', { role: currentUser?.role, campId: currentUser?.campId, id: currentUser?.id })
 
-      // For Shepherds, get only assigned members
+      // For Shepherds, show all members in their camp but only allow editing assigned ones
       if (currentUser && currentUser.role === 'Shepherd') {
+        // Get assigned member IDs for canEdit flag
         const assignedMemberIds = await db.select({ memberId: memberAssignments.memberId })
           .from(memberAssignments)
           .where(eq(memberAssignments.shepherdId, currentUser.id))
 
-        if (assignedMemberIds.length === 0) {
-          return []
-        }
+        const assignedIds = new Set(assignedMemberIds.map(a => a.memberId))
 
-        const memberIdsList = assignedMemberIds.map(a => a.memberId)
+        console.log('🔍 SHEPHERD DEBUG:', {
+          shepherdId: currentUser.id,
+          shepherdCampId: currentUser.campId,
+          assignedMemberCount: assignedIds.size,
+          assignedMemberIds: Array.from(assignedIds),
+        })
+
+        // Fetch ALL members in the Shepherd's camp
+        const whereCondition = currentUser.campId ? eq(members.campId, currentUser.campId) : undefined
 
         const membersList = await db.select({
           id: members.id,
@@ -46,13 +92,19 @@ export const getMembers = createServerFn({ method: "GET" })
         })
           .from(members)
           .leftJoin(camps, eq(members.campId, camps.id))
-          .where(inArray(members.id, memberIdsList))
+          .where(whereCondition)
           .orderBy(desc(members.createdAt))
 
-        // Shepherds can edit their assigned members
+        console.log('🔍 SHEPHERD MEMBERS FETCHED:', {
+          count: membersList.length,
+          campId: currentUser.campId,
+          members: membersList.map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName, campId: m.campId }))
+        })
+
+        // Add canEdit flag - only assigned members can be edited
         return membersList.map(member => ({
           ...member,
-          canEdit: true,
+          canEdit: assignedIds.has(member.id),
         }))
       }
 
@@ -92,8 +144,17 @@ export const getMembers = createServerFn({ method: "GET" })
         : baseQuery.orderBy(desc(members.createdAt))
       )
 
-      // Add canEdit flag for Admin and Leaders
-      const membersWithCanEdit = membersList.map((member) => {
+      console.log('🔍 MEMBERS DEBUG - ADMIN/LEADER:', {
+        currentUser: currentUser,
+        userRole: currentUser?.role,
+        userCampId: currentUser && currentUser.role !== 'Admin' ? currentUser.campId : undefined,
+        whereConditionApplied: !!whereCondition,
+        memberCount: membersList.length,
+        members: membersList.map(m => ({ id: m.id, firstName: m.firstName, lastName: m.lastName, campId: m.campId }))
+      })
+
+      // Add canEdit flag based on user role
+      const membersWithCanEdit = membersList.map(member => {
         let canEdit = false
 
         if (currentUser) {
@@ -118,19 +179,20 @@ export const getMembers = createServerFn({ method: "GET" })
     }
   })
 
+
 export const getMemberById = createServerFn({ method: "GET" })
   .inputValidator((data: { id: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       // For Shepherds, enforce assignment requirement
-      if (currentUser && currentUser.role === 'Shepherd') {
+      if (currentUser && currentUser.role === 'Shepherd' && currentUser.id) {
         const assignment = await db.select()
           .from(memberAssignments)
           .where(
             and(
-              eq(memberAssignments.memberId, data.id),
+              eq(memberAssignments.memberId, context.data.id),
               eq(memberAssignments.shepherdId, currentUser.id)
             )
           )
@@ -143,11 +205,11 @@ export const getMemberById = createServerFn({ method: "GET" })
       }
 
       // Build where conditions
-      const conditions = [eq(members.id, data.id)]
+      const conditions = [eq(members.id, context.data.id)]
 
       // Apply camp filtering for Leaders
       if (currentUser && currentUser.role === 'Leader' && currentUser.campId) {
-        conditions.push(eq(members.campId, currentUser.campId))
+        conditions.push(eq(members.campId, currentUser.campId!))
       }
 
       const result = await db.select({
@@ -207,15 +269,15 @@ export const getMemberById = createServerFn({ method: "GET" })
 
 export const deleteMembers = createServerFn({ method: "POST" })
   .inputValidator((data: { ids: string[] }) => data)
-  .handler(async ({ data }) => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }
       }
 
-      if (!data.ids || data.ids.length === 0) {
+      if (!context.data.ids || context.data.ids.length === 0) {
         return { success: false, message: "No IDs provided" }
       }
 
@@ -225,7 +287,7 @@ export const deleteMembers = createServerFn({ method: "POST" })
         campId: members.campId,
       })
         .from(members)
-        .where(inArray(members.id, data.ids))
+        .where(inArray(members.id, context.data.ids))
 
       for (const member of membersToDelete) {
         let isAuthorized = false
@@ -253,9 +315,9 @@ export const deleteMembers = createServerFn({ method: "POST" })
       }
 
       // Delete the members
-      await db.delete(members).where(inArray(members.id, data.ids))
+      await db.delete(members).where(inArray(members.id, context.data.ids))
 
-      return { success: true, message: `Deleted ${data.ids.length} members.` }
+      return { success: true, message: `Deleted ${context.data.ids.length} members.` }
     } catch (error: any) {
       console.error('Error deleting members:', error)
       return { success: false, message: error.message }
@@ -263,8 +325,13 @@ export const deleteMembers = createServerFn({ method: "POST" })
   })
 
 export const createMember = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: unknown }) => {
-    const { firstName, lastName, email, phone, role, campus, category, birthday, region, guardianContact, guardianLocation } = data as {
+  .handler(async (context) => {
+    // Add type guard to ensure data exists
+    if (!context.data) {
+      return { success: false, message: "No data provided" }
+    }
+
+    const { firstName, lastName, email, phone, role, campus, category, birthday, region, guardianContact, guardianLocation } = context.data as {
       firstName: string
       lastName: string
       email?: string
@@ -279,7 +346,7 @@ export const createMember = createServerFn({ method: "POST" })
     }
 
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }
@@ -368,8 +435,13 @@ export const createMember = createServerFn({ method: "POST" })
   })
 
 export const updateMember = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: unknown }) => {
-    const { id, firstName, lastName, email, phone, role, campus, category, birthday, status, residence, guardian, region, guardianContact, guardianLocation, profilePicture } = data as {
+  .handler(async (context) => {
+    // Add type guard to ensure data exists
+    if (!context.data) {
+      return { success: false, message: "No data provided" }
+    }
+
+    const { id, firstName, lastName, email, phone, role, campus, category, birthday, status, residence, guardian, region, guardianContact, guardianLocation, profilePicture } = context.data as {
       id: string
       firstName?: string
       lastName?: string
@@ -389,7 +461,7 @@ export const updateMember = createServerFn({ method: "POST" })
     }
 
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return { success: false, message: "Unauthorized" }
@@ -590,9 +662,9 @@ export const updateMember = createServerFn({ method: "POST" })
 
 export const getMembersByCampus = createServerFn({ method: "GET" })
   .inputValidator((data: { campId: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       if (!currentUser) {
         return []
@@ -634,14 +706,14 @@ export const getMembersByCampus = createServerFn({ method: "GET" })
           .leftJoin(camps, eq(members.campId, camps.id))
           .where(and(
             inArray(members.id, memberIdsList),
-            eq(members.campId, data.campId)
+            eq(members.campId, context.data.campId)
           ))
 
         return campusMembers
       }
 
       // Leaders can only see their own camp
-      if (currentUser.role === 'Leader' && currentUser.campId) {
+      if (currentUser && currentUser.role === 'Leader' && currentUser.campId) {
         const campusMembers = await db.select({
           id: members.id,
           firstName: members.firstName,
@@ -664,7 +736,7 @@ export const getMembersByCampus = createServerFn({ method: "GET" })
         })
           .from(members)
           .leftJoin(camps, eq(members.campId, camps.id))
-          .where(eq(members.campId, data.campId))
+          .where(eq(members.campId, context.data.campId))
 
         return campusMembers
       }
@@ -692,7 +764,7 @@ export const getMembersByCampus = createServerFn({ method: "GET" })
       })
         .from(members)
         .leftJoin(camps, eq(members.campId, camps.id))
-        .where(eq(members.campId, data.campId))
+        .where(eq(members.campId, context.data.campId))
 
       return campusMembers
     } catch (error) {
@@ -703,11 +775,11 @@ export const getMembersByCampus = createServerFn({ method: "GET" })
 
 export const getMembersByCategory = createServerFn({ method: "GET" })
   .inputValidator((data: { category: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
-      const conditions = [eq(members.category, data.category as any)]
+      const conditions = [eq(members.category, context.data.category as any)]
 
       // Apply camp filtering for non-Admin users
       if (currentUser && currentUser.role !== 'Admin' && currentUser.campId) {
@@ -746,9 +818,9 @@ export const getMembersByCategory = createServerFn({ method: "GET" })
   })
 
 export const getCampusStats = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .handler(async (context) => {
     try {
-      const currentUser = await getCurrentUser()
+      const currentUser = await getCurrentUserFromContext(context)
 
       const stats: Record<string, number> = {
         cohk: 0,
