@@ -1,217 +1,415 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '@/db'
-import { events, attendance, members } from '@/db/schema'
-import { eq, desc, sql, and } from 'drizzle-orm'
+import { events, attendance, members, memberAssignments } from '@/db/schema'
+import { eq, desc, sql, and, inArray } from 'drizzle-orm'
+import { getCurrentUser } from './auth'
 
-// Get all events with attendance counts
+// Get all events with attendance counts (filtered by user's camp)
 export const getEvents = createServerFn({ method: "GET" })
-    .handler(async () => {
-        try {
-            const allEvents = await db.select({
-                id: events.id,
-                name: events.name,
-                date: events.date,
-                type: events.type,
-                description: events.description,
-                meetingUrl: events.meetingUrl,
-                isRecurring: events.isRecurring,
-                createdAt: events.createdAt,
-            })
-                .from(events)
-                .orderBy(desc(events.date));
+  .handler(async () => {
+    try {
+      const currentUser = await getCurrentUser()
 
-            // Get attendance counts for each event
-            const eventsWithCounts = await Promise.all(
-                allEvents.map(async (event) => {
-                    const counts = await db.select({
-                        status: attendance.status,
-                        count: sql<number>`count(*)`,
-                    })
-                        .from(attendance)
-                        .where(eq(attendance.eventId, event.id))
-                        .groupBy(attendance.status);
+      // Build where conditions
+      const whereConditions = []
+      if (currentUser && currentUser.role !== 'Admin' && currentUser.campId) {
+        whereConditions.push(eq(events.campId, currentUser.campId))
+      }
 
-                    const present = counts.find(c => c.status === 'Present')?.count || 0;
-                    const absent = counts.find(c => c.status === 'Absent')?.count || 0;
-                    const excused = counts.find(c => c.status === 'Excused')?.count || 0;
+      const eventsQuery = db.select({
+        id: events.id,
+        name: events.name,
+        date: events.date,
+        type: events.type,
+        description: events.description,
+        meetingUrl: events.meetingUrl,
+        isRecurring: events.isRecurring,
+        createdAt: events.createdAt,
+      })
+        .from(events)
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+        .orderBy(desc(events.date))
 
-                    return {
-                        ...event,
-                        presentCount: Number(present),
-                        absentCount: Number(absent),
-                        excusedCount: Number(excused),
-                        totalCount: Number(present) + Number(absent) + Number(excused),
-                    };
-                })
-            );
+      const allEvents = await eventsQuery
 
-            return eventsWithCounts;
-        } catch (error) {
-            console.error('Error fetching events:', error);
-            return [];
-        }
-    });
+      // Get attendance counts for each event (with camp filtering)
+      const eventsWithCounts = await Promise.all(
+        allEvents.map(async (event) => {
+          // Build where conditions
+          const attendanceWhereConditions = [eq(attendance.eventId, event.id)]
+
+          // Filter by camp for non-Admin users
+          if (currentUser && currentUser.role !== 'Admin' && currentUser.campId) {
+            attendanceWhereConditions.push(eq(members.campId, currentUser.campId))
+          }
+
+          const counts = await db.select({
+            status: attendance.status,
+            count: sql<number>`count(*)`,
+          })
+            .from(attendance)
+            .innerJoin(members, eq(attendance.memberId, members.id))
+            .where(and(...attendanceWhereConditions))
+            .groupBy(attendance.status)
+
+          const present = counts.find(c => c.status === 'Present')?.count || 0
+          const absent = counts.find(c => c.status === 'Absent')?.count || 0
+          const excused = counts.find(c => c.status === 'Excused')?.count || 0
+
+          return {
+            ...event,
+            presentCount: Number(present),
+            absentCount: Number(absent),
+            excusedCount: Number(excused),
+            totalCount: Number(present) + Number(absent) + Number(excused),
+          }
+        })
+      )
+
+      return eventsWithCounts
+    } catch (error) {
+      console.error('Error fetching events:', error)
+      return []
+    }
+  })
 
 // Create a new event
 export const createEvent = createServerFn({ method: "POST" })
-    .handler(async ({ data }: { data: unknown }) => {
-        const { name, date, type, description, meetingUrl } = data as {
-            name: string;
-            date: string;
-            type: 'Service' | 'Retreat' | 'Meeting' | 'Outreach';
-            description?: string;
-            meetingUrl?: string;
-        };
+  .handler(async ({ data }: { data: unknown }) => {
+    const { name, date, type, description, meetingUrl } = data as {
+      name: string
+      date: string
+      type: 'Service' | 'Retreat' | 'Meeting' | 'Outreach'
+      description?: string
+      meetingUrl?: string
+    }
 
-        try {
-            const [newEvent] = await db.insert(events).values({
-                name,
-                date: new Date(date),
-                type,
-                description: description || null,
-                meetingUrl: meetingUrl || null,
-            }).returning();
+    try {
+      const currentUser = await getCurrentUser()
 
-            return { success: true, event: newEvent };
-        } catch (error: any) {
-            console.error('Error creating event:', error);
-            return { success: false, message: error.message };
-        }
-    });
+      if (!currentUser) {
+        return { success: false, message: "Unauthorized" }
+      }
 
-// Get attendance for a specific event
+      // Leaders and Shepherds can only create events for their camp
+      const campIdToUse = currentUser.role === 'Admin' ? null : currentUser.campId
+
+      const [newEvent] = await db.insert(events).values({
+        name,
+        date: new Date(date),
+        type,
+        description: description || null,
+        meetingUrl: meetingUrl || null,
+        campId: campIdToUse || null,
+      }).returning()
+
+      return { success: true, event: newEvent }
+    } catch (error: any) {
+      console.error('Error creating event:', error)
+      return { success: false, message: error.message }
+    }
+  })
+
+// Get attendance for a specific event (with RBAC)
 export const getEventAttendance = createServerFn({ method: "GET" })
-    .inputValidator((data: { eventId: string }) => data)
-    .handler(async ({ data }) => {
-        try {
-            // Get all active members
-            const allMembers = await db.select({
-                id: members.id,
-                firstName: members.firstName,
-                lastName: members.lastName,
-                role: members.role,
-            })
-                .from(members)
-                .where(eq(members.status, 'Active'));
+  .inputValidator((data: { eventId: string }) => data)
+  .handler(async ({ data }) => {
+    try {
+      const currentUser = await getCurrentUser()
 
-            // Get attendance records for this event
-            const attendanceRecords = await db.select()
-                .from(attendance)
-                .where(eq(attendance.eventId, data.eventId));
+      if (!currentUser) {
+        return []
+      }
 
-            // Map attendance status to members
-            const membersWithAttendance = allMembers.map(member => {
-                const record = attendanceRecords.find(a => a.memberId === member.id);
-                return {
-                    ...member,
-                    attendanceId: record?.id || null,
-                    attendanceStatus: record?.status || null,
-                    notes: record?.notes || null,
-                };
-            });
+      // Verify user has access to this event
+      const eventToAccess = await db.select({
+        id: events.id,
+        campId: events.campId,
+      })
+        .from(events)
+        .where(eq(events.id, data.eventId))
+        .limit(1)
 
-            return membersWithAttendance;
-        } catch (error) {
-            console.error('Error fetching event attendance:', error);
-            return [];
+      if (!eventToAccess[0]) {
+        return []
+      }
+
+      // Check authorization
+      if (currentUser.role !== 'Admin' && eventToAccess[0].campId !== currentUser.campId) {
+        return []
+      }
+
+      // For Shepherds, only show assigned members
+      if (currentUser.role === 'Shepherd') {
+        const assignedMembers = await db.select({ memberId: memberAssignments.memberId })
+          .from(memberAssignments)
+          .where(eq(memberAssignments.shepherdId, currentUser.id))
+
+        if (assignedMembers.length === 0) {
+          return []
         }
-    });
+
+        const memberIdsList = assignedMembers.map(a => a.memberId)
+
+        const allMembers = await db.select({
+          id: members.id,
+          firstName: members.firstName,
+          lastName: members.lastName,
+          role: members.role,
+          campId: members.campId,
+        })
+          .from(members)
+          .where(and(
+            eq(members.status, 'Active'),
+            inArray(members.id, memberIdsList)
+          ))
+
+        // Get attendance records for this event
+        const attendanceRecords = await db.select()
+          .from(attendance)
+          .where(eq(attendance.eventId, data.eventId))
+
+        // Map attendance status to members
+        const membersWithAttendance = allMembers.map(member => {
+          const record = attendanceRecords.find(a => a.memberId === member.id)
+          return {
+            ...member,
+            attendanceId: record?.id || null,
+            attendanceStatus: record?.status || null,
+            notes: record?.notes || null,
+          }
+        })
+
+        return membersWithAttendance
+      }
+
+      // Get active members in the user's camp (Leaders and Admins)
+      const memberWhereConditions = [eq(members.status, 'Active')]
+
+      if (currentUser.role !== 'Admin' && currentUser.campId) {
+        memberWhereConditions.push(eq(members.campId, currentUser.campId))
+      }
+
+      const allMembers = await db.select({
+        id: members.id,
+        firstName: members.firstName,
+        lastName: members.lastName,
+        role: members.role,
+        campId: members.campId,
+      })
+        .from(members)
+        .where(and(...memberWhereConditions))
+
+      // Get attendance records for this event
+      const attendanceRecords = await db.select()
+        .from(attendance)
+        .where(eq(attendance.eventId, data.eventId))
+
+      // Map attendance status to members
+      const membersWithAttendance = allMembers.map(member => {
+        const record = attendanceRecords.find(a => a.memberId === member.id)
+        return {
+          ...member,
+          attendanceId: record?.id || null,
+          attendanceStatus: record?.status || null,
+          notes: record?.notes || null,
+        }
+      })
+
+      return membersWithAttendance
+    } catch (error) {
+      console.error('Error fetching event attendance:', error)
+      return []
+    }
+  })
 
 // Mark attendance for a member at an event
 export const markAttendance = createServerFn({ method: "POST" })
-    .handler(async ({ data }: { data: unknown }) => {
-        const { eventId, memberId, status, notes } = data as {
-            eventId: string;
-            memberId: string;
-            status: 'Present' | 'Absent' | 'Excused';
-            notes?: string;
-        };
+  .handler(async ({ data }: { data: unknown }) => {
+    const { eventId, memberId, status, notes } = data as {
+      eventId: string
+      memberId: string
+      status: 'Present' | 'Absent' | 'Excused'
+      notes?: string
+    }
 
-        try {
-            // Check if record exists
-            const existing = await db.select()
-                .from(attendance)
-                .where(and(
-                    eq(attendance.eventId, eventId),
-                    eq(attendance.memberId, memberId)
-                ))
-                .limit(1);
+    try {
+      const currentUser = await getCurrentUser()
 
-            if (existing.length > 0) {
-                // Update existing
-                await db.update(attendance)
-                    .set({ status, notes: notes || null })
-                    .where(eq(attendance.id, existing[0].id));
-            } else {
-                // Insert new
-                await db.insert(attendance).values({
-                    eventId,
-                    memberId,
-                    status,
-                    notes: notes || null,
-                });
-            }
+      if (!currentUser) {
+        return { success: false, message: "Unauthorized" }
+      }
 
-            return { success: true };
-        } catch (error: any) {
-            console.error('Error marking attendance:', error);
-            return { success: false, message: error.message };
+      // Verify user can mark attendance (has access to member)
+      const memberToCheck = await db.select({
+        id: members.id,
+        campId: members.campId,
+      })
+        .from(members)
+        .where(eq(members.id, memberId))
+        .limit(1)
+
+      if (!memberToCheck[0]) {
+        return { success: false, message: "Member not found" }
+      }
+
+      // Check authorization based on role
+      if (currentUser.role === 'Shepherd') {
+        const assignment = await db.select()
+          .from(memberAssignments)
+          .where(and(
+            eq(memberAssignments.memberId, memberId),
+            eq(memberAssignments.shepherdId, currentUser.id)
+          ))
+          .limit(1)
+
+        if (assignment.length === 0) {
+          return { success: false, message: "Unauthorized" }
         }
-    });
+      } else if (currentUser.role === 'Leader' && memberToCheck[0].campId !== currentUser.campId) {
+        return { success: false, message: "Unauthorized" }
+      }
+
+      // Check if record exists
+      const existing = await db.select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.eventId, eventId),
+          eq(attendance.memberId, memberId)
+        ))
+        .limit(1)
+
+      if (existing.length > 0) {
+        await db.update(attendance)
+          .set({ status, notes: notes || null })
+          .where(eq(attendance.id, existing[0].id))
+      } else {
+        await db.insert(attendance).values({
+          eventId,
+          memberId,
+          status,
+          notes: notes || null,
+        })
+      }
+
+      return { success: true }
+    } catch (error: any) {
+      console.error('Error marking attendance:', error)
+      return { success: false, message: error.message }
+    }
+  })
 
 // Bulk mark attendance for multiple members
 export const bulkMarkAttendance = createServerFn({ method: "POST" })
-    .handler(async ({ data }: { data: unknown }) => {
-        const { eventId, memberIds, status } = data as {
-            eventId: string;
-            memberIds: string[];
-            status: 'Present' | 'Absent' | 'Excused';
-        };
+  .handler(async ({ data }: { data: unknown }) => {
+    const { eventId, memberIds, status } = data as {
+      eventId: string
+      memberIds: string[]
+      status: 'Present' | 'Absent' | 'Excused'
+    }
 
-        try {
-            for (const memberId of memberIds) {
-                const existing = await db.select()
-                    .from(attendance)
-                    .where(and(
-                        eq(attendance.eventId, eventId),
-                        eq(attendance.memberId, memberId)
-                    ))
-                    .limit(1);
+    try {
+      const currentUser = await getCurrentUser()
 
-                if (existing.length > 0) {
-                    await db.update(attendance)
-                        .set({ status })
-                        .where(eq(attendance.id, existing[0].id));
-                } else {
-                    await db.insert(attendance).values({
-                        eventId,
-                        memberId,
-                        status,
-                    });
-                }
-            }
+      if (!currentUser) {
+        return { success: false, message: "Unauthorized" }
+      }
 
-            return { success: true, count: memberIds.length };
-        } catch (error: any) {
-            console.error('Error bulk marking attendance:', error);
-            return { success: false, message: error.message };
+      // Verify all members are in user's authorized scope
+      const membersToCheck = await db.select({
+        id: members.id,
+        campId: members.campId,
+      })
+        .from(members)
+        .where(inArray(members.id, memberIds))
+
+      if (currentUser.role === 'Shepherd') {
+        // Check if all members are assigned to this shepherd
+        const assignedMembers = await db.select({ memberId: memberAssignments.memberId })
+          .from(memberAssignments)
+          .where(eq(memberAssignments.shepherdId, currentUser.id))
+
+        const assignedMemberIds = assignedMembers.map(a => a.memberId)
+
+        for (const memberId of memberIds) {
+          if (!assignedMemberIds.includes(memberId)) {
+            return { success: false, message: "Unauthorized to mark attendance for this member" }
+          }
         }
-    });
+      } else if (currentUser.role === 'Leader') {
+        for (const member of membersToCheck) {
+          if (member.campId !== currentUser.campId) {
+            return { success: false, message: "Unauthorized to mark attendance for this member" }
+          }
+        }
+      }
+
+      for (const memberId of memberIds) {
+        const existing = await db.select()
+          .from(attendance)
+          .where(and(
+            eq(attendance.eventId, eventId),
+            eq(attendance.memberId, memberId)
+          ))
+          .limit(1)
+
+        if (existing.length > 0) {
+          await db.update(attendance)
+            .set({ status })
+            .where(eq(attendance.id, existing[0].id))
+        } else {
+          await db.insert(attendance).values({
+            eventId,
+            memberId,
+            status,
+          })
+        }
+      }
+
+      return { success: true, count: memberIds.length }
+    } catch (error: any) {
+      console.error('Error bulk marking attendance:', error)
+      return { success: false, message: error.message }
+    }
+  })
 
 // Delete an event
 export const deleteEvent = createServerFn({ method: "POST" })
-    .handler(async ({ data }: { data: unknown }) => {
-        const { eventId } = data as { eventId: string };
+  .handler(async ({ data }: { data: unknown }) => {
+    const { eventId } = data as { eventId: string }
 
-        try {
-            // Delete attendance records first
-            await db.delete(attendance).where(eq(attendance.eventId, eventId));
-            // Then delete the event
-            await db.delete(events).where(eq(events.id, eventId));
+    try {
+      const currentUser = await getCurrentUser()
 
-            return { success: true };
-        } catch (error: any) {
-            console.error('Error deleting event:', error);
-            return { success: false, message: error.message };
-        }
-    });
+      if (!currentUser) {
+        return { success: false, message: "Unauthorized" }
+      }
+
+      // Verify user can delete this event
+      const eventToDelete = await db.select({
+        id: events.id,
+        campId: events.campId,
+      })
+        .from(events)
+        .where(eq(events.id, eventId))
+        .limit(1)
+
+      if (!eventToDelete[0]) {
+        return { success: false, message: "Event not found" }
+      }
+
+      if (currentUser.role !== 'Admin' && eventToDelete[0].campId !== currentUser.campId) {
+        return { success: false, message: "Unauthorized to delete this event" }
+      }
+
+      // Delete attendance records first
+      await db.delete(attendance).where(eq(attendance.eventId, eventId))
+      // Then delete the event
+      await db.delete(events).where(eq(events.id, eventId))
+
+      return { success: true }
+    } catch (error: any) {
+      console.error('Error deleting event:', error)
+      return { success: false, message: error.message }
+    }
+  })
