@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { Analytics } from '@vercel/analytics/react'
 
 import { Toaster } from 'sonner'
 
@@ -61,6 +62,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           ]}
         />
         <Toaster position="top-center" richColors />
+        <Analytics />
         <Scripts />
       </body>
     </html>
